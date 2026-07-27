@@ -28,16 +28,16 @@ export default function CartDrawer() {
       {/* Drawer */}
       <div className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-sm bg-white shadow-2xl flex flex-col">
         {/* Header */}
-        <div className="brand-gradient px-5 py-4 flex items-center justify-between">
-          <h2 className="text-base font-bold text-white flex items-center gap-2">
+        <div className="px-5 py-3 flex items-center justify-between" style={{ background: 'linear-gradient(135deg, #0d0a1e 0%, #1a0a2e 100%)' }}>
+          <h2 className="text-base font-bold flex items-center gap-2" style={{ background: 'linear-gradient(135deg, #a78bfa, #ffffff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
             Carrinho
             {items.length > 0 && (
-              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-white/20 text-white">
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(167,139,250,0.2)', color: '#a78bfa', WebkitTextFillColor: '#a78bfa' }}>
                 {items.reduce((s, i) => s + i.quantity, 0)}
               </span>
             )}
           </h2>
-          <button onClick={() => setOpen(false)} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors text-white">
+          <button onClick={() => setOpen(false)} className="p-1.5 rounded-lg transition-colors" style={{ color: 'rgba(167,139,250,0.7)' }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M18 6L6 18M6 6l12 12"/>
             </svg>
