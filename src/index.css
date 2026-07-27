@@ -1,4 +1,15 @@
+@import '@fontsource/dm-sans/400.css';
+@import '@fontsource/dm-sans/500.css';
+@import '@fontsource/dm-sans/600.css';
+@import '@fontsource/dm-sans/700.css';
 @import "tailwindcss";
+
+@theme {
+  --color-brand: #3525cd;
+  --color-brand-dark: #2a1ea8;
+  --color-brand-end: #8127cf;
+  --font-sans: 'DM Sans', system-ui, -apple-system, sans-serif;
+}
 
 * {
   box-sizing: border-box;
@@ -7,8 +18,15 @@
 }
 
 body {
-  font-family: system-ui, -apple-system, sans-serif;
-  background: #f8f8f8;
-  color: #1a1a1a;
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  background: #f4f6f9;
+  color: #191c1e;
   -webkit-font-smoothing: antialiased;
 }
+
+.brand-gradient {
+  background: linear-gradient(135deg, #3525cd 0%, #8127cf 100%);
+}
+
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

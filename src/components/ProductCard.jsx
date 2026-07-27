@@ -38,7 +38,7 @@ export default function ProductCard({ item }) {
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col hover:shadow-md transition-shadow">
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
       {/* Imagem */}
       <div className="relative aspect-square bg-gray-50">
         {item.imageUrl ? (
@@ -49,19 +49,19 @@ export default function ProductCard({ item }) {
             loading="lazy"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-gray-300">
+          <div className="w-full h-full flex items-center justify-center text-gray-200">
             <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
               <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-1.1 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
             </svg>
           </div>
         )}
         {item.available <= 3 && item.available > 0 && (
-          <span className="absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">
+          <span className="absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-600">
             Últimas {item.available}!
           </span>
         )}
         {item.available === 0 && (
-          <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
+          <div className="absolute inset-0 bg-white/75 flex items-center justify-center">
             <span className="text-sm font-bold text-gray-400">Esgotado</span>
           </div>
         )}
@@ -70,7 +70,8 @@ export default function ProductCard({ item }) {
       {/* Info */}
       <div className="p-3 flex flex-col flex-1 gap-2">
         <div className="flex gap-1 flex-wrap">
-          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 font-semibold">
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
+            style={{ background: 'rgba(53,37,205,0.08)', color: '#3525cd' }}>
             {CATEGORY_LABEL[item.saleCategory] ?? item.saleCategory}
           </span>
           {item.itemSubtype && item.itemSubtype !== 'selado' && (
@@ -93,15 +94,15 @@ export default function ProductCard({ item }) {
         )}
 
         <div className="flex items-center justify-between gap-2 mt-auto pt-1">
-          <span className="text-lg font-black text-indigo-600">
+          <span className="text-lg font-black" style={{ color: '#3525cd' }}>
             {fmtBRL(item.targetPrice)}
           </span>
           <button
             onClick={handleAdd}
             disabled={!canAdd}
-            className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all
-              bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95
-              disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
+            className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95
+              disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100 text-white"
+            style={{ background: canAdd ? 'linear-gradient(135deg, #3525cd 0%, #8127cf 100%)' : '#9ca3af' }}
           >
             {inCart ? `+1 (${inCart.quantity})` : 'Adicionar'}
           </button>

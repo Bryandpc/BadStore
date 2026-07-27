@@ -35,25 +35,25 @@ export default function StorePage() {
   }, [items, search, category])
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#f4f6f9]">
       {/* Header */}
-      <header className="bg-white border-b border-gray-100 sticky top-0 z-30 shadow-sm">
+      <header className="brand-gradient sticky top-0 z-30 shadow-lg">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
           <div className="flex-1">
-            <h1 className="text-lg font-black text-indigo-600 leading-none">BadStore</h1>
-            <p className="text-[11px] text-gray-400 leading-none mt-0.5">TCG & Crochê</p>
+            <h1 className="text-xl font-black text-white leading-none tracking-tight">BadStore</h1>
+            <p className="text-[11px] text-white/70 leading-none mt-0.5">TCG & Crochê</p>
           </div>
           <button
             onClick={() => setOpen(true)}
-            className="relative p-2 rounded-xl hover:bg-gray-100 transition-colors"
+            className="relative p-2 rounded-xl hover:bg-white/10 transition-colors"
             aria-label="Carrinho"
           >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
               <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
               <path d="M3 6h18M16 10a4 4 0 01-8 0"/>
             </svg>
             {cartCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-indigo-600 text-white text-[10px] font-black flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-white text-[#3525cd] text-[10px] font-black flex items-center justify-center">
                 {cartCount > 9 ? '9+' : cartCount}
               </span>
             )}
@@ -64,13 +64,18 @@ export default function StorePage() {
       <div className="max-w-5xl mx-auto px-4 py-5">
         {/* Filtros */}
         <div className="flex flex-col sm:flex-row gap-3 mb-6">
-          <input
-            type="text"
-            placeholder="Buscar produto..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition"
-          />
+          <div className="relative flex-1">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+            </svg>
+            <input
+              type="text"
+              placeholder="Buscar produto..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#3525cd]/30 focus:border-[#3525cd] transition"
+            />
+          </div>
           <div className="flex gap-2">
             {CATEGORIES.map(cat => (
               <button
@@ -78,8 +83,8 @@ export default function StorePage() {
                 onClick={() => setCategory(cat.value)}
                 className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
                   category === cat.value
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'bg-white text-gray-600 border border-gray-200 hover:border-indigo-300'
+                    ? 'brand-gradient text-white shadow-sm'
+                    : 'bg-white text-gray-600 border border-gray-200 hover:border-[#3525cd]/40'
                 }`}
               >
                 {cat.label}
