@@ -19,16 +19,20 @@ const AuthContext = createContext(null)
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(undefined) // undefined = carregando
   const [profile, setProfile] = useState(null) // { name, phone, photoUrl }
+  const [profileLoading, setProfileLoading] = useState(true)
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u)
       if (u) {
+        setProfileLoading(true)
         const snap = await getDoc(doc(db, 'users', u.uid))
         setProfile(snap.exists() ? snap.data() : null)
+        setProfileLoading(false)
         registerFcmToken(u.uid)
       } else {
         setProfile(null)
+        setProfileLoading(false)
       }
     })
     return () => unsub()
@@ -86,7 +90,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, register, login, loginGoogle, logout, saveProfile, uploadProfilePhoto }}>
+    <AuthContext.Provider value={{ user, profile, profileLoading, register, login, loginGoogle, logout, saveProfile, uploadProfilePhoto }}>
       {children}
     </AuthContext.Provider>
   )

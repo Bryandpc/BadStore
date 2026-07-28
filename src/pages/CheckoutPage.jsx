@@ -45,7 +45,7 @@ export default function CheckoutPage() {
   const items = useCartStore(s => s.items)
   const clear = useCartStore(s => s.clear)
   const navigate = useNavigate()
-  const { user, profile } = useAuth()
+  const { user, profile, profileLoading } = useAuth()
 
   const [name, setName] = useState('')
   const [contact, setContact] = useState('')
@@ -54,16 +54,24 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
   const [successOrderId, setSuccessOrderId] = useState(null)
+  const [editingProfile, setEditingProfile] = useState(false)
+
+  // Dados efetivos que serão usados no pedido (profile tem prioridade sobre estado local)
+  const effectiveName    = profileLoading ? '' : (profile?.name ?? name)
+  const effectiveContact = profileLoading ? '' : (profile?.phone ?? contact)
+  const effectivePhoto   = profile?.photoUrl ?? user?.photoURL ?? null
+  const profileComplete  = !profileLoading && !!(profile?.name && profile?.phone)
 
   useEffect(() => {
     if (user === null) navigate('/login?next=/checkout', { replace: true })
   }, [user, navigate])
 
+  // Preenche os campos do formulário quando o perfil carrega (modo edição)
   useEffect(() => {
-    if (!user) return
-    if (!name) setName(profile?.name ?? user.displayName ?? '')
-    if (!contact && profile?.phone) setContact(profile.phone)
-  }, [user, profile])
+    if (profileLoading || !user) return
+    setName(profile?.name ?? user.displayName ?? '')
+    if (profile?.phone) setContact(profile.phone)
+  }, [profileLoading, user, profile])
 
   // Valida contato em tempo real após primeiro blur
   useEffect(() => {
@@ -74,8 +82,8 @@ export default function CheckoutPage() {
 
   const total = items.reduce((s, i) => s + i.unitPrice * i.quantity, 0)
   const contactType = detectContactType(contact)
-  const contactValidation = validateContact(contact)
-  const canSubmit = name.trim() && contactValidation.valid && !submitting
+  const contactValidation = validateContact(profileComplete ? effectiveContact : contact)
+  const canSubmit = !profileLoading && (profileComplete || (name.trim() && contactValidation.valid)) && !submitting
 
   const handleContactChange = (e) => {
     const raw = e.target.value
@@ -91,8 +99,10 @@ export default function CheckoutPage() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setContactTouched(true)
-    const validation = validateContact(contact)
-    if (!name.trim()) { setError('Preencha seu nome.'); return }
+    const usedContact = profileComplete ? effectiveContact : contact
+    const usedName    = profileComplete ? effectiveName    : name
+    const validation  = validateContact(usedContact)
+    if (!usedName.trim()) { setError('Preencha seu nome.'); return }
     if (!validation.valid) { setContactError(validation.msg); return }
 
     setSubmitting(true)
@@ -110,9 +120,10 @@ export default function CheckoutPage() {
       }
 
       const docRef = await addDoc(collection(db, 'orders'), {
-        customerName: name.trim(),
-        customerContact: contact.trim(),
+        customerName: effectiveName.trim(),
+        customerContact: effectiveContact.trim(),
         customerEmail: user?.email ?? null,
+        customerPhotoUrl: effectivePhoto,
         uid: user?.uid ?? null,
         items: items.map(i => ({
           id: i.id,
@@ -249,59 +260,97 @@ export default function CheckoutPage() {
           </div>
         </div>
 
-        {/* Formulário */}
+        {/* Dados do cliente */}
         <form onSubmit={handleSubmit} className="bg-surface-container-low rounded-xl border border-outline-variant p-5 space-y-4">
-          <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Seus dados</p>
-
-          <div>
-            <label className="text-xs font-semibold text-on-surface-variant block mb-1.5">Nome *</label>
-            <input
-              type="text"
-              placeholder="Como você se chama?"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-lg border border-outline-variant bg-surface-container text-on-surface text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition placeholder:text-on-surface-variant/50"
-            />
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Seus dados</p>
+            {profileComplete && (
+              <button type="button" onClick={() => setEditingProfile(v => !v)} className="text-xs text-primary hover:underline">
+                {editingProfile ? 'Cancelar' : 'Editar'}
+              </button>
+            )}
           </div>
 
-          <div>
-            <label className="text-xs font-semibold text-on-surface-variant block mb-1.5">
-              WhatsApp ou @instagram *
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                inputMode={contactType === 'instagram' ? 'text' : 'tel'}
-                placeholder="(41) 99999-9999 ou @usuario"
-                value={contact}
-                onChange={handleContactChange}
-                onBlur={() => setContactTouched(true)}
-                className={`w-full px-4 py-2.5 pr-10 rounded-lg border bg-surface-container text-on-surface text-sm focus:outline-none focus:ring-1 transition placeholder:text-on-surface-variant/50
-                  ${contactTouched
-                    ? contactValidation.valid
-                      ? 'border-green-500 focus:ring-green-500 focus:border-green-500'
-                      : 'border-error focus:ring-error focus:border-error'
-                    : 'border-outline-variant focus:ring-primary focus:border-primary'
-                  }`}
-              />
-              {contactTouched && (
-                <span className={`material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-base ${contactValidation.valid ? 'text-green-500' : 'text-error'}`}>
-                  {contactValidation.valid ? 'check_circle' : 'error'}
-                </span>
-              )}
+          {/* Skeleton enquanto profile carrega */}
+          {profileLoading && (
+            <div className="flex items-center gap-3 bg-surface-container rounded-xl px-4 py-3 animate-pulse">
+              <div className="w-11 h-11 rounded-full bg-outline-variant shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="h-3 bg-outline-variant rounded w-32" />
+                <div className="h-2.5 bg-outline-variant rounded w-48" />
+              </div>
             </div>
-            {contactTouched && contactError && (
-              <p className="text-xs text-error mt-1.5 flex items-center gap-1">
-                <span className="material-symbols-outlined text-sm">info</span>
-                {contactError}
-              </p>
-            )}
-            {!contactTouched && (
-              <p className="text-[11px] text-on-surface-variant/60 mt-1.5">
-                Informe um número com DDD ou seu @instagram
-              </p>
-            )}
-          </div>
+          )}
+
+          {/* Card de perfil — aparece quando dados estão completos e não está editando */}
+          {!profileLoading && profileComplete && !editingProfile ? (
+            <div className="flex items-center gap-3 bg-surface-container rounded-xl px-4 py-3">
+              {effectivePhoto ? (
+                <img src={effectivePhoto} alt="" className="w-11 h-11 rounded-full object-cover shrink-0" />
+              ) : (
+                <div className="w-11 h-11 rounded-full bg-primary-container flex items-center justify-center text-base font-black text-on-primary shrink-0">
+                  {effectiveName.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-on-surface">{effectiveName}</p>
+                <p className="text-xs text-on-surface-variant mt-0.5">{effectiveContact}</p>
+              </div>
+              <span className="material-symbols-outlined text-green-500 text-xl">check_circle</span>
+            </div>
+          ) : !profileLoading && (
+            <>
+              <div>
+                <label className="text-xs font-semibold text-on-surface-variant block mb-1.5">Nome *</label>
+                <input
+                  type="text"
+                  placeholder="Como você se chama?"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-lg border border-outline-variant bg-surface-container text-on-surface text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition placeholder:text-on-surface-variant/50"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-on-surface-variant block mb-1.5">
+                  WhatsApp ou @instagram *
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    inputMode={contactType === 'instagram' ? 'text' : 'tel'}
+                    placeholder="(41) 99999-9999 ou @usuario"
+                    value={contact}
+                    onChange={handleContactChange}
+                    onBlur={() => setContactTouched(true)}
+                    className={`w-full px-4 py-2.5 pr-10 rounded-lg border bg-surface-container text-on-surface text-sm focus:outline-none focus:ring-1 transition placeholder:text-on-surface-variant/50
+                      ${contactTouched
+                        ? contactValidation.valid
+                          ? 'border-green-500 focus:ring-green-500 focus:border-green-500'
+                          : 'border-error focus:ring-error focus:border-error'
+                        : 'border-outline-variant focus:ring-primary focus:border-primary'
+                      }`}
+                  />
+                  {contactTouched && (
+                    <span className={`material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-base ${contactValidation.valid ? 'text-green-500' : 'text-error'}`}>
+                      {contactValidation.valid ? 'check_circle' : 'error'}
+                    </span>
+                  )}
+                </div>
+                {contactTouched && contactError && (
+                  <p className="text-xs text-error mt-1.5 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-sm">info</span>
+                    {contactError}
+                  </p>
+                )}
+                {!contactTouched && (
+                  <p className="text-[11px] text-on-surface-variant/60 mt-1.5">
+                    Informe um número com DDD ou seu @instagram
+                  </p>
+                )}
+              </div>
+            </>
+          )}
 
           {error && (
             <div className="flex items-center gap-2 bg-error/10 border border-error/30 rounded-lg px-3 py-2">
