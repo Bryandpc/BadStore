@@ -31,7 +31,7 @@ export default function StorePage() {
 
   const cartItems = useCartStore(s => s.items)
   const setOpen = useCartStore(s => s.setOpen)
-  const { user, logout } = useAuth()
+  const { user, profile, logout } = useAuth()
   const navigate = useNavigate()
 
   const cartCount = cartItems.reduce((acc, i) => acc + i.quantity, 0)
@@ -164,10 +164,14 @@ export default function StorePage() {
               <div className="relative">
                 <button
                   onClick={() => setUserMenu(v => !v)}
-                  className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black text-on-primary bg-primary-container"
+                  className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center text-xs font-black text-on-primary bg-primary-container"
                   title={user.displayName || user.email}
                 >
-                  {(user.displayName || user.email || '?').charAt(0).toUpperCase()}
+                  {(profile?.photoUrl || user.photoURL) ? (
+                    <img src={profile?.photoUrl || user.photoURL} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    (user.displayName || user.email || '?').charAt(0).toUpperCase()
+                  )}
                 </button>
                 {userMenu && (
                   <>
@@ -175,6 +179,7 @@ export default function StorePage() {
                     <div className="absolute right-0 top-9 z-50 rounded-xl py-1 min-w-[160px] shadow-xl bg-surface-container-high border border-outline-variant">
                       <p className="px-4 py-2 text-xs font-semibold truncate text-on-surface-variant">{user.displayName || user.email}</p>
                       <hr className="border-outline-variant" />
+                      <button onClick={() => { navigate('/perfil'); setUserMenu(false) }} className="w-full text-left px-4 py-2 text-sm text-on-surface hover:bg-surface-container transition-colors">Meu Perfil</button>
                       <button onClick={() => { navigate('/meus-pedidos'); setUserMenu(false) }} className="w-full text-left px-4 py-2 text-sm text-on-surface hover:bg-surface-container transition-colors">Meus Pedidos</button>
                       <button onClick={() => { logout(); setUserMenu(false) }} className="w-full text-left px-4 py-2 text-sm text-error hover:bg-surface-container transition-colors">Sair</button>
                     </div>

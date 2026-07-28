@@ -68,7 +68,7 @@ export default function CheckoutPage() {
   const items = useCartStore(s => s.items)
   const clear = useCartStore(s => s.clear)
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
 
   const [name, setName] = useState('')
   const [contact, setContact] = useState('')
@@ -82,8 +82,10 @@ export default function CheckoutPage() {
   }, [user, navigate])
 
   useEffect(() => {
-    if (user?.displayName && !name) setName(user.displayName)
-  }, [user])
+    if (!user) return
+    if (!name) setName(profile?.name ?? user.displayName ?? '')
+    if (!contact && profile?.phone) setContact(profile.phone)
+  }, [user, profile])
 
   // Valida contato em tempo real após primeiro blur
   useEffect(() => {
