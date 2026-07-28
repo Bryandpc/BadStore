@@ -17,13 +17,13 @@ function fmtDate(ts) {
 }
 
 const STATUS = {
-  draft:               { label: 'Aguardando',          color: 'text-amber-400',        bg: 'bg-amber-400/10 border-amber-400/30',    icon: 'schedule' },
-  confirmado:          { label: 'Ag. Pagamento',        color: 'text-blue-400',         bg: 'bg-blue-400/10 border-blue-400/30',      icon: 'pix' },
-  confirmado_pago:     { label: 'Comprovante enviado',  color: 'text-teal-400',         bg: 'bg-teal-400/10 border-teal-400/30',      icon: 'check_circle' },
-  separando:           { label: 'Sendo separado',       color: 'text-primary',          bg: 'bg-primary/10 border-primary/30',        icon: 'inventory_2' },
-  enviado:             { label: 'Enviado',              color: 'text-green-400',        bg: 'bg-green-400/10 border-green-400/30',    icon: 'local_shipping' },
-  entregue:            { label: 'Entregue',             color: 'text-on-surface-variant', bg: 'bg-surface-container border-outline-variant', icon: 'done_all' },
-  cancelado:           { label: 'Cancelado',            color: 'text-error',            bg: 'bg-error/10 border-error/30',            icon: 'cancel' },
+  draft:           { label: 'Recebido',             color: 'text-amber-400',          bg: 'bg-amber-400/10 border-amber-400/30',    icon: 'schedule' },
+  confirmado:      { label: 'Aguardando pagamento',  color: 'text-blue-400',           bg: 'bg-blue-400/10 border-blue-400/30',      icon: 'payments' },
+  confirmado_pago: { label: 'Comprovante enviado',   color: 'text-teal-400',           bg: 'bg-teal-400/10 border-teal-400/30',      icon: 'check_circle' },
+  separando:       { label: 'Preparando pedido',     color: 'text-primary',            bg: 'bg-primary/10 border-primary/30',        icon: 'inventory_2' },
+  enviado:         { label: 'A caminho',             color: 'text-green-400',          bg: 'bg-green-400/10 border-green-400/30',    icon: 'local_shipping' },
+  entregue:        { label: 'Entregue',              color: 'text-on-surface-variant', bg: 'bg-surface-container border-outline-variant', icon: 'done_all' },
+  cancelado:       { label: 'Cancelado',             color: 'text-error',              bg: 'bg-error/10 border-error/30',            icon: 'cancel' },
 }
 
 function resolveStatus(order) {
@@ -42,33 +42,45 @@ function StatusBadge({ order }) {
   )
 }
 
-// Timeline de progresso do pedido
-const STEPS = ['draft', 'confirmado', 'separando', 'enviado', 'entregue']
+// Timeline de progresso do pedido — steps visíveis ao cliente
+const STEPS = [
+  { key: 'draft',      label: 'Recebido',    icon: 'schedule' },
+  { key: 'confirmado', label: 'Ag. pagamento', icon: 'payments' },
+  { key: 'separando',  label: 'Preparando',  icon: 'inventory_2' },
+  { key: 'enviado',    label: 'A caminho',   icon: 'local_shipping' },
+  { key: 'entregue',   label: 'Entregue',    icon: 'done_all' },
+]
 
-function OrderTimeline({ status }) {
-  if (status === 'cancelado') return (
+// Mapeia status real para índice da timeline (confirmado_pago ainda é step 1)
+function stepIndex(status) {
+  const map = { draft: 0, confirmado: 1, confirmado_pago: 1, separando: 2, enviado: 3, entregue: 4 }
+  return map[status] ?? 0
+}
+
+function OrderTimeline({ order }) {
+  const resolved = resolveStatus(order)
+  if (resolved === 'cancelado') return (
     <div className="flex items-center gap-2 px-4 py-3 bg-error/5 border-t border-error/20">
       <span className="material-symbols-outlined text-error text-base">cancel</span>
       <p className="text-xs text-error font-semibold">Pedido cancelado</p>
     </div>
   )
 
-  const currentIdx = STEPS.indexOf(status)
+  const currentIdx = stepIndex(resolved)
   return (
     <div className="px-4 py-3 border-t border-outline-variant/30">
-      <div className="flex items-center gap-0">
+      <div className="flex items-center">
         {STEPS.map((step, i) => {
           const done = i <= currentIdx
           const active = i === currentIdx
-          const s = STATUS[step]
           return (
-            <div key={step} className="flex items-center flex-1 last:flex-none">
+            <div key={step.key} className="flex items-center flex-1 last:flex-none">
               <div className={`flex flex-col items-center gap-1 ${active ? 'opacity-100' : done ? 'opacity-70' : 'opacity-25'}`}>
-                <span className={`material-symbols-outlined text-sm ${active ? s.color : done ? 'text-primary' : 'text-on-surface-variant'}`}>
-                  {done ? (active ? s.icon : 'check_circle') : s.icon}
+                <span className={`material-symbols-outlined text-sm ${active ? 'text-primary' : done ? 'text-primary' : 'text-on-surface-variant'}`}>
+                  {done && !active ? 'check_circle' : step.icon}
                 </span>
-                <span className={`text-[8px] font-bold whitespace-nowrap ${active ? s.color : done ? 'text-primary' : 'text-on-surface-variant'}`}>
-                  {s.label}
+                <span className={`text-[8px] font-bold text-center leading-tight ${active ? 'text-primary' : done ? 'text-primary' : 'text-on-surface-variant'}`}>
+                  {step.label}
                 </span>
               </div>
               {i < STEPS.length - 1 && (
@@ -113,7 +125,6 @@ function CopyPix() {
 }
 
 function ProofField({ order }) {
-  const fileRef = useRef(null)
   const [uploading, setUploading] = useState(false)
   const [preview, setPreview] = useState(null)
   const [error, setError] = useState(null)
@@ -165,15 +176,10 @@ function ProofField({ order }) {
 
   return (
     <div className="px-4 py-3 border-t border-blue-400/20 bg-blue-400/5 space-y-2">
-      <div className="flex items-start gap-2">
-        <span className="material-symbols-outlined text-blue-400 text-base mt-0.5">pix</span>
-        <div>
-          <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Pagamento via Pix</p>
-          <p className="text-[11px] text-on-surface-variant mt-0.5 leading-relaxed">
-            Copie a chave abaixo, realize o pagamento e envie o comprovante.
-          </p>
-        </div>
-      </div>
+      <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Aguardando pagamento</p>
+      <p className="text-[11px] text-on-surface-variant leading-relaxed">
+        Realize o pagamento via Pix e envie o comprovante abaixo para confirmarmos.
+      </p>
       <CopyPix />
 
       {preview && (
@@ -182,17 +188,15 @@ function ProofField({ order }) {
 
       {error && <p className="text-xs text-error">{error}</p>}
 
-      <button
-        onClick={() => fileRef.current?.click()}
-        disabled={uploading}
-        className="w-full py-2.5 rounded-xl border-2 border-dashed border-blue-400/40 text-blue-400 text-xs font-bold flex items-center justify-center gap-2 hover:bg-blue-400/10 transition-colors disabled:opacity-50"
-      >
-        <span className="material-symbols-outlined text-base">
-          {uploading ? 'hourglass_empty' : 'upload'}
+      {/* Botão grande, fácil de tocar no mobile */}
+      <label className={`w-full py-4 rounded-xl border-2 border-dashed border-blue-400/50 text-blue-400 font-bold flex flex-col items-center justify-center gap-1.5 transition-colors cursor-pointer active:bg-blue-400/10 ${uploading ? 'opacity-50 pointer-events-none' : 'hover:bg-blue-400/10'}`}>
+        <span className="material-symbols-outlined text-2xl">
+          {uploading ? 'hourglass_empty' : 'upload_file'}
         </span>
-        {uploading ? 'Enviando...' : 'Anexar comprovante'}
-      </button>
-      <input ref={fileRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={handleFile} />
+        <span className="text-sm">{uploading ? 'Enviando...' : 'Anexar comprovante'}</span>
+        <span className="text-[11px] text-on-surface-variant font-normal">Foto, print ou PDF</span>
+        <input type="file" accept="image/*,application/pdf" capture="environment" className="hidden" onChange={handleFile} disabled={uploading} />
+      </label>
     </div>
   )
 }
@@ -437,7 +441,7 @@ export default function MyOrdersPage() {
                   </div>
 
                   {/* Timeline */}
-                  <OrderTimeline status={order.status} />
+                  <OrderTimeline order={order} />
 
                   {/* Comprovante Pix — só quando aguardando pagamento */}
                   {order.status === 'confirmado' && <ProofField order={order} />}
