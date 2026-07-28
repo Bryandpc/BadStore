@@ -22,6 +22,9 @@ export default function StorePage() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [userMenu, setUserMenu] = useState(false)
+  const [showQR, setShowQR] = useState(false)
+
+  const WA_GROUP = 'https://chat.whatsapp.com/LNFKF4WHzXE9hpaaycAosa'
 
   useEffect(() => {
     const q = query(collection(db, 'stock_items'), where('available', '>', 0))
@@ -89,6 +92,12 @@ export default function StorePage() {
                       </p>
                       <hr style={{ borderColor: 'rgba(167,139,250,0.1)' }} />
                       <button
+                        onClick={() => { navigate('/meus-pedidos'); setUserMenu(false) }}
+                        className="w-full text-left px-4 py-2 text-sm text-white hover:bg-white/5 transition-colors"
+                      >
+                        Meus Pedidos
+                      </button>
+                      <button
                         onClick={() => { logout(); setUserMenu(false) }}
                         className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-white/5 transition-colors"
                       >
@@ -143,6 +152,31 @@ export default function StorePage() {
           </div>
         </div>
 
+        {/* Banner comunidade WhatsApp */}
+        <div
+          className="mb-5 rounded-2xl flex items-center gap-4 px-5 py-4 cursor-pointer select-none"
+          style={{ background: 'linear-gradient(135deg, #0d0a1e 0%, #1a0a2e 100%)', border: '1px solid rgba(37,211,102,0.25)' }}
+          onClick={() => setShowQR(true)}
+        >
+          <div className="relative flex-shrink-0">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'rgba(37,211,102,0.15)' }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="#25d366">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                <path d="M11.99 0C5.373 0 0 5.373 0 11.99c0 2.117.555 4.099 1.525 5.822L0 24l6.335-1.54A11.945 11.945 0 0011.99 24C18.607 24 24 18.627 24 11.99 24 5.373 18.607 0 11.99 0z" opacity=".5"/>
+              </svg>
+            </div>
+            <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full animate-ping" style={{ background: '#25d366' }} />
+            <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full" style={{ background: '#25d366' }} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-white">Entre na nossa comunidade!</p>
+            <p className="text-xs" style={{ color: 'rgba(37,211,102,0.8)' }}>Grupo BadTCG no WhatsApp — promoções e novidades</p>
+          </div>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: 'rgba(37,211,102,0.6)', flexShrink: 0 }}>
+            <path d="M9 18l6-6-6-6"/>
+          </svg>
+        </div>
+
         {/* Grid */}
         {loading ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
@@ -168,6 +202,41 @@ export default function StorePage() {
           </>
         )}
       </div>
+
+      {/* Modal QR WhatsApp */}
+      {showQR && (
+        <>
+          <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowQR(false)}>
+            <div className="rounded-3xl overflow-hidden max-w-xs w-full" style={{ background: '#1a0a2e', border: '1px solid rgba(37,211,102,0.3)' }} onClick={e => e.stopPropagation()}>
+              <div className="px-5 pt-5 pb-3 flex items-center justify-between">
+                <div>
+                  <p className="text-base font-black text-white">Grupo BadTCG</p>
+                  <p className="text-xs" style={{ color: 'rgba(167,139,250,0.6)' }}>Escaneie ou clique para entrar</p>
+                </div>
+                <button onClick={() => setShowQR(false)} className="p-1.5 rounded-lg" style={{ color: 'rgba(167,139,250,0.6)' }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
+              </div>
+              <img src="/whatsapp-qr.jpg" alt="QR Code WhatsApp" className="w-full" />
+              <div className="px-5 pb-5 pt-3">
+                <a
+                  href={WA_GROUP}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-bold text-sm"
+                  style={{ background: 'linear-gradient(135deg, #25d366, #128c7e)' }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                    <path d="M11.99 0C5.373 0 0 5.373 0 11.99c0 2.117.555 4.099 1.525 5.822L0 24l6.335-1.54A11.945 11.945 0 0011.99 24C18.607 24 24 18.627 24 11.99 24 5.373 18.607 0 11.99 0z" opacity=".5"/>
+                  </svg>
+                  Entrar no grupo
+                </a>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }

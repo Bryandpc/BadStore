@@ -3,6 +3,7 @@ import { AuthProvider } from './contexts/AuthContext'
 import StorePage from './pages/StorePage'
 import CheckoutPage from './pages/CheckoutPage'
 import AuthPage from './pages/AuthPage'
+import MyOrdersPage from './pages/MyOrdersPage'
 import CartDrawer from './components/CartDrawer'
 import './index.css'
 
@@ -15,6 +16,7 @@ export default function App() {
           <Route path="/" element={<StorePage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="/login" element={<AuthPage />} />
+          <Route path="/meus-pedidos" element={<MyOrdersPage />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
