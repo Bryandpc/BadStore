@@ -74,6 +74,8 @@ function OrderTimeline({ status }) {
   )
 }
 
+const REPLY_SEEN_KEY = 'reply_seen_'
+
 function NoteField({ order }) {
   const [text, setText] = useState(order.customerNote ?? '')
   const [saving, setSaving] = useState(false)
@@ -100,34 +102,65 @@ function NoteField({ order }) {
 
   const canEdit = !['entregue', 'cancelado'].includes(order.status)
 
+  // Marca resposta como lida ao expandir
+  useEffect(() => {
+    if (order.storeReplyAt) {
+      localStorage.setItem(REPLY_SEEN_KEY + order.id, order.storeReplyAt)
+    }
+  }, [order.id, order.storeReplyAt])
+
   return (
-    <div className="px-4 pb-4 pt-1 border-t border-outline-variant/30 space-y-2">
-      <p className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Deixar um recado</p>
-      <textarea
-        rows={2}
-        disabled={!canEdit}
-        placeholder={canEdit ? 'Alguma observação para o pedido? Ex: endereço, preferência de entrega...' : 'Pedido finalizado.'}
-        value={text}
-        onChange={e => { setText(e.target.value); setSaved(false) }}
-        className="w-full px-3 py-2 rounded-lg border border-outline-variant bg-surface-container text-on-surface text-xs resize-none focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition placeholder:text-on-surface-variant/40 disabled:opacity-50 disabled:cursor-not-allowed"
-      />
-      {canEdit && (
-        <button
-          onClick={handleSave}
-          disabled={!dirty || saving}
-          className={[
-            'text-xs font-bold px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 disabled:opacity-40',
-            saved ? 'bg-green-600/20 text-green-400' : 'bg-primary/10 text-primary hover:bg-primary/20',
-          ].join(' ')}
-        >
-          <span className="material-symbols-outlined text-sm">
-            {saved ? 'check' : saving ? 'hourglass_empty' : 'send'}
-          </span>
-          {saved ? 'Enviado!' : saving ? 'Enviando...' : 'Enviar recado'}
-        </button>
+    <div className="border-t border-outline-variant/30 space-y-0">
+      {/* Resposta da loja */}
+      {order.storeReply && (
+        <div className="px-4 py-3 bg-primary/5 border-b border-outline-variant/30">
+          <div className="flex items-start gap-2">
+            <img src="/logo-gengar.png" alt="loja" className="w-5 h-5 object-contain mt-0.5 shrink-0" />
+            <div>
+              <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-1">Resposta da loja</p>
+              <p className="text-xs text-on-surface leading-relaxed">{order.storeReply}</p>
+            </div>
+          </div>
+        </div>
       )}
+
+      {/* Recado do cliente */}
+      <div className="px-4 pb-4 pt-3 space-y-2">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
+          {order.customerNote ? 'Seu recado' : 'Deixar um recado'}
+        </p>
+        <textarea
+          rows={2}
+          disabled={!canEdit}
+          placeholder={canEdit ? 'Alguma observação? Ex: endereço, preferência de entrega...' : 'Pedido finalizado.'}
+          value={text}
+          onChange={e => { setText(e.target.value); setSaved(false) }}
+          className="w-full px-3 py-2 rounded-lg border border-outline-variant bg-surface-container text-on-surface text-xs resize-none focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition placeholder:text-on-surface-variant/40 disabled:opacity-50 disabled:cursor-not-allowed"
+        />
+        {canEdit && (
+          <button
+            onClick={handleSave}
+            disabled={!dirty || saving}
+            className={[
+              'text-xs font-bold px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 disabled:opacity-40',
+              saved ? 'bg-green-600/20 text-green-400' : 'bg-primary/10 text-primary hover:bg-primary/20',
+            ].join(' ')}
+          >
+            <span className="material-symbols-outlined text-sm">
+              {saved ? 'check' : saving ? 'hourglass_empty' : 'send'}
+            </span>
+            {saved ? 'Enviado!' : saving ? 'Enviando...' : 'Enviar recado'}
+          </button>
+        )}
+      </div>
     </div>
   )
+}
+
+function hasUnseenReply(order) {
+  if (!order.storeReplyAt) return false
+  const seen = localStorage.getItem(REPLY_SEEN_KEY + order.id)
+  return seen !== order.storeReplyAt
 }
 
 export default function MyOrdersPage() {
@@ -199,11 +232,12 @@ export default function MyOrdersPage() {
           const st = STATUS[order.status] ?? STATUS.draft
           const isOpen = expanded === order.id
           const isCancelled = order.status === 'cancelado'
+          const unseenReply = hasUnseenReply(order)
 
           return (
             <div
               key={order.id}
-              className={`bg-surface-container-low rounded-xl border overflow-hidden transition-all ${isCancelled ? 'border-error/20 opacity-70' : 'border-outline-variant hover:border-outline'}`}
+              className={`bg-surface-container-low rounded-xl border overflow-hidden transition-all ${isCancelled ? 'border-error/20 opacity-70' : unseenReply ? 'border-primary/50 ring-1 ring-primary/30' : 'border-outline-variant hover:border-outline'}`}
             >
               {/* Linha principal */}
               <div
@@ -216,6 +250,12 @@ export default function MyOrdersPage() {
                       #{order.id.slice(-6).toUpperCase()}
                     </span>
                     <StatusBadge status={order.status} />
+                    {unseenReply && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/15 text-primary">
+                        <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                        nova resposta
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-on-surface-variant">{fmtDate(order.createdAt)}</p>
                 </div>
