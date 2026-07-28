@@ -99,7 +99,8 @@ export default function CheckoutPage() {
               <path d="M19 12H5M12 19l-7-7 7-7"/>
             </svg>
           </button>
-          <img src="/logo.png" alt="logo" className="w-9 h-9 object-contain" />
+          <img src="/logo-gengar.png" alt="logo" className="w-9 h-9 object-contain" />
+          <img src="/logo-nome.png" alt="BAD TCG" className="h-7 object-contain" />
           <h1 className="text-base font-bold" style={{ background: 'linear-gradient(135deg, #a78bfa, #ffffff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Finalizar Pedido</h1>
         </div>
       </header>

@@ -39,9 +39,9 @@ export default function StorePage() {
       {/* Header */}
       <header className="sticky top-0 z-30 shadow-xl" style={{ background: 'linear-gradient(135deg, #0d0a1e 0%, #1a0a2e 50%, #0d0a1e 100%)' }}>
         <div className="max-w-5xl mx-auto px-4 py-2 flex items-center gap-3">
-          <img src="/logo.png" alt="BadStore logo" className="w-12 h-12 object-contain flex-shrink-0" />
+          <img src="/logo-gengar.png" alt="Gengar" className="w-10 h-10 object-contain flex-shrink-0" />
           <div className="flex-1">
-            <h1 className="text-xl font-black leading-none tracking-tight" style={{ background: 'linear-gradient(135deg, #a78bfa, #ffffff, #c084fc)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>BadStore</h1>
+            <img src="/logo-nome.png" alt="BAD TCG" className="h-8 object-contain object-left" />
             <p className="text-[11px] leading-none mt-0.5" style={{ color: 'rgba(167,139,250,0.7)' }}>TCG & Crochê</p>
           </div>
           <button
