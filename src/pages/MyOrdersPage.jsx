@@ -16,15 +16,17 @@ function fmtDate(ts) {
 }
 
 const STATUS = {
-  draft:     { label: 'Aguardando pagamento', color: 'text-amber-400',          bg: 'bg-amber-400/10 border-amber-400/30',         icon: 'payments' },
-  confirmado:{ label: 'Confirmado',           color: 'text-blue-400',           bg: 'bg-blue-400/10 border-blue-400/30',           icon: 'check_circle' },
-  separando: { label: 'Separando',            color: 'text-primary',            bg: 'bg-primary/10 border-primary/30',             icon: 'inventory_2' },
-  enviado:   { label: 'Enviado',              color: 'text-green-400',          bg: 'bg-green-400/10 border-green-400/30',         icon: 'local_shipping' },
-  entregue:  { label: 'Entregue',             color: 'text-on-surface-variant', bg: 'bg-surface-container border-outline-variant', icon: 'done_all' },
-  cancelado: { label: 'Cancelado',            color: 'text-error',              bg: 'bg-error/10 border-error/30',                 icon: 'cancel' },
+  draft:       { label: 'Aguardando pagamento', color: 'text-amber-400',          bg: 'bg-amber-400/10 border-amber-400/30',         icon: 'payments' },
+  confirmado:  { label: 'Confirmado',           color: 'text-blue-400',           bg: 'bg-blue-400/10 border-blue-400/30',           icon: 'check_circle' },
+  em_revisao:  { label: 'Em análise',           color: 'text-teal-400',           bg: 'bg-teal-400/10 border-teal-400/30',           icon: 'pending' },
+  separando:   { label: 'Separando',            color: 'text-primary',            bg: 'bg-primary/10 border-primary/30',             icon: 'inventory_2' },
+  enviado:     { label: 'Enviado',              color: 'text-green-400',          bg: 'bg-green-400/10 border-green-400/30',         icon: 'local_shipping' },
+  entregue:    { label: 'Entregue',             color: 'text-on-surface-variant', bg: 'bg-surface-container border-outline-variant', icon: 'done_all' },
+  cancelado:   { label: 'Cancelado',            color: 'text-error',              bg: 'bg-error/10 border-error/30',                 icon: 'cancel' },
 }
 
 function resolveStatus(order) {
+  if (order.status === 'confirmado' && order.paymentProofUrl) return 'em_revisao'
   return order.status
 }
 
@@ -43,13 +45,13 @@ function StatusBadge({ order }) {
 const STEPS = [
   { key: 'draft',      label: 'Ag. pagamento', icon: 'payments' },
   { key: 'confirmado', label: 'Confirmado',    icon: 'check_circle' },
+  { key: 'em_revisao', label: 'Em análise',    icon: 'pending' },
   { key: 'separando',  label: 'Separando',     icon: 'inventory_2' },
   { key: 'enviado',    label: 'Enviado',        icon: 'local_shipping' },
-  { key: 'entregue',   label: 'Entregue',       icon: 'done_all' },
 ]
 
 function stepIndex(status) {
-  const map = { draft: 0, confirmado: 1, separando: 2, enviado: 3, entregue: 4 }
+  const map = { draft: 0, confirmado: 1, em_revisao: 2, separando: 3, enviado: 4, entregue: 4 }
   return map[status] ?? 0
 }
 
