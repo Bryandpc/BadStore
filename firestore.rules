@@ -1,0 +1,31 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── stock_items ──────────────────────────────────────────────────────────
+    // Leitura pública (catálogo do BadStore)
+    // Escrita APENAS via Admin SDK do BadTracking (regra false bloqueia client SDK)
+    match /stock_items/{itemId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // ── orders ───────────────────────────────────────────────────────────────
+    // Create: usuário autenticado, só pode criar pedido com seu próprio uid,
+    //         status inicial obrigatoriamente 'draft', origem 'badstore'
+    // Read:   só o dono do pedido
+    // Update/Delete: bloqueado para client SDK — só Admin SDK do BadTracking
+    match /orders/{orderId} {
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.status == 'draft'
+        && request.resource.data.origem == 'badstore'
+        && request.resource.data.keys().hasAll(['customerName', 'customerContact', 'items', 'total']);
+
+      allow read: if request.auth != null
+        && resource.data.uid == request.auth.uid;
+
+      allow update, delete: if false;
+    }
+  }
+}
