@@ -16,17 +16,15 @@ function fmtDate(ts) {
 }
 
 const STATUS = {
-  draft:           { label: 'Recebido',             color: 'text-amber-400',          bg: 'bg-amber-400/10 border-amber-400/30',    icon: 'schedule' },
-  confirmado:      { label: 'Aguardando pagamento',  color: 'text-blue-400',           bg: 'bg-blue-400/10 border-blue-400/30',      icon: 'payments' },
-  confirmado_pago: { label: 'Comprovante enviado',   color: 'text-teal-400',           bg: 'bg-teal-400/10 border-teal-400/30',      icon: 'check_circle' },
-  separando:       { label: 'Preparando pedido',     color: 'text-primary',            bg: 'bg-primary/10 border-primary/30',        icon: 'inventory_2' },
-  enviado:         { label: 'A caminho',             color: 'text-green-400',          bg: 'bg-green-400/10 border-green-400/30',    icon: 'local_shipping' },
-  entregue:        { label: 'Entregue',              color: 'text-on-surface-variant', bg: 'bg-surface-container border-outline-variant', icon: 'done_all' },
-  cancelado:       { label: 'Cancelado',             color: 'text-error',              bg: 'bg-error/10 border-error/30',            icon: 'cancel' },
+  draft:     { label: 'Aguardando pagamento', color: 'text-amber-400',          bg: 'bg-amber-400/10 border-amber-400/30',         icon: 'payments' },
+  confirmado:{ label: 'Confirmado',           color: 'text-blue-400',           bg: 'bg-blue-400/10 border-blue-400/30',           icon: 'check_circle' },
+  separando: { label: 'Separando',            color: 'text-primary',            bg: 'bg-primary/10 border-primary/30',             icon: 'inventory_2' },
+  enviado:   { label: 'Enviado',              color: 'text-green-400',          bg: 'bg-green-400/10 border-green-400/30',         icon: 'local_shipping' },
+  entregue:  { label: 'Entregue',             color: 'text-on-surface-variant', bg: 'bg-surface-container border-outline-variant', icon: 'done_all' },
+  cancelado: { label: 'Cancelado',            color: 'text-error',              bg: 'bg-error/10 border-error/30',                 icon: 'cancel' },
 }
 
 function resolveStatus(order) {
-  if (order.status === 'confirmado' && order.paymentProofUrl) return 'confirmado_pago'
   return order.status
 }
 
@@ -41,18 +39,17 @@ function StatusBadge({ order }) {
   )
 }
 
-// Timeline de progresso do pedido — steps visíveis ao cliente
+// Timeline de progresso do pedido — espelha os steps do BadTracking
 const STEPS = [
-  { key: 'draft',      label: 'Recebido',    icon: 'schedule' },
-  { key: 'confirmado', label: 'Ag. pagamento', icon: 'payments' },
-  { key: 'separando',  label: 'Preparando',  icon: 'inventory_2' },
-  { key: 'enviado',    label: 'A caminho',   icon: 'local_shipping' },
-  { key: 'entregue',   label: 'Entregue',    icon: 'done_all' },
+  { key: 'draft',      label: 'Ag. pagamento', icon: 'payments' },
+  { key: 'confirmado', label: 'Confirmado',    icon: 'check_circle' },
+  { key: 'separando',  label: 'Separando',     icon: 'inventory_2' },
+  { key: 'enviado',    label: 'Enviado',        icon: 'local_shipping' },
+  { key: 'entregue',   label: 'Entregue',       icon: 'done_all' },
 ]
 
-// Mapeia status real para índice da timeline (confirmado_pago ainda é step 1)
 function stepIndex(status) {
-  const map = { draft: 0, confirmado: 1, confirmado_pago: 1, separando: 2, enviado: 3, entregue: 4 }
+  const map = { draft: 0, confirmado: 1, separando: 2, enviado: 3, entregue: 4 }
   return map[status] ?? 0
 }
 
@@ -150,14 +147,37 @@ function ProofField({ order }) {
     )
   }
 
+  const compressImage = (file) => new Promise((resolve) => {
+    // PDFs passam direto
+    if (file.type === 'application/pdf') { resolve(file); return }
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      const MAX = 1600
+      let { width, height } = img
+      if (width > MAX || height > MAX) {
+        if (width > height) { height = Math.round(height * MAX / width); width = MAX }
+        else { width = Math.round(width * MAX / height); height = MAX }
+      }
+      const canvas = document.createElement('canvas')
+      canvas.width = width; canvas.height = height
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height)
+      canvas.toBlob(blob => resolve(new File([blob], file.name, { type: 'image/jpeg' })), 'image/jpeg', 0.82)
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file) }
+    img.src = url
+  })
+
   const handleFile = async (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const raw = e.target.files?.[0]
+    if (!raw) return
     e.target.value = ''
     setError(null)
     setUploading(true)
-    setPreview(URL.createObjectURL(file))
+    setPreview(URL.createObjectURL(raw))
     try {
+      const file = await compressImage(raw)
       const form = new FormData()
       form.append('file', file)
       const res = await fetch('/api/upload-proof', { method: 'POST', body: form })
@@ -167,8 +187,8 @@ function ProofField({ order }) {
         paymentProofUrl: url,
         paymentProofAt: serverTimestamp(),
       })
-    } catch {
-      setError('Erro ao enviar. Tente novamente.')
+    } catch (err) {
+      setError(`Erro ao enviar: ${err.message ?? 'tente novamente'}`)
       setPreview(null)
     } finally {
       setUploading(false)
@@ -177,9 +197,9 @@ function ProofField({ order }) {
 
   return (
     <div className="px-4 py-3 border-t border-blue-400/20 bg-blue-400/5 space-y-2">
-      <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Aguardando pagamento</p>
+      <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Pedido confirmado — envie o pagamento</p>
       <p className="text-[11px] text-on-surface-variant leading-relaxed">
-        Realize o pagamento via Pix e envie o comprovante abaixo para confirmarmos.
+        Realize o pagamento via Pix e anexe o comprovante abaixo para seguirmos com a separação.
       </p>
       <CopyPix />
 
