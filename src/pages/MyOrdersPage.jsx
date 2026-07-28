@@ -84,6 +84,34 @@ function OrderTimeline({ status }) {
 
 const REPLY_SEEN_KEY = 'reply_seen_'
 
+const PIX_KEY = 'tcgbad@gmail.com'
+
+function CopyPix() {
+  const [copied, setCopied] = useState(false)
+  const copy = () => {
+    navigator.clipboard.writeText(PIX_KEY)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+  return (
+    <div className="flex items-center gap-2 bg-surface-container rounded-xl px-3 py-2.5">
+      <div className="flex-1 min-w-0">
+        <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-0.5">Chave Pix</p>
+        <p className="text-sm font-mono font-semibold text-on-surface truncate">{PIX_KEY}</p>
+      </div>
+      <button
+        onClick={copy}
+        className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+          copied ? 'bg-green-500/20 text-green-400' : 'bg-primary/15 text-primary hover:bg-primary/25'
+        }`}
+      >
+        <span className="material-symbols-outlined text-sm">{copied ? 'check' : 'content_copy'}</span>
+        {copied ? 'Copiado!' : 'Copiar'}
+      </button>
+    </div>
+  )
+}
+
 function ProofField({ order }) {
   const fileRef = useRef(null)
   const [uploading, setUploading] = useState(false)
@@ -140,12 +168,13 @@ function ProofField({ order }) {
       <div className="flex items-start gap-2">
         <span className="material-symbols-outlined text-blue-400 text-base mt-0.5">pix</span>
         <div>
-          <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Enviar comprovante Pix</p>
+          <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Pagamento via Pix</p>
           <p className="text-[11px] text-on-surface-variant mt-0.5 leading-relaxed">
-            Após realizar o pagamento, envie o print ou PDF do comprovante para agilizar a confirmação.
+            Copie a chave abaixo, realize o pagamento e envie o comprovante.
           </p>
         </div>
       </div>
+      <CopyPix />
 
       {preview && (
         <img src={preview} alt="preview" className="w-full max-h-40 object-contain rounded-lg border border-outline-variant/30" />
