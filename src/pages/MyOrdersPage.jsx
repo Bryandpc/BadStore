@@ -256,7 +256,7 @@ function hasUnseenReply(order) {
 }
 
 export default function MyOrdersPage() {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const navigate = useNavigate()
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
@@ -304,7 +304,21 @@ export default function MyOrdersPage() {
             <span className="material-symbols-outlined">arrow_back</span>
           </button>
           <img src="/logo-completa.jpg" alt="BAD TCG" className="h-8 object-contain rounded" />
-          <h1 className="text-base font-display font-bold text-on-surface">Meus Pedidos</h1>
+          <h1 className="text-base font-display font-bold text-on-surface flex-1">Meus Pedidos</h1>
+          {/* Avatar do usuário */}
+          <button onClick={() => navigate('/perfil')} className="shrink-0">
+            {(profile?.photoUrl || user?.photoURL) ? (
+              <img
+                src={profile?.photoUrl || user?.photoURL}
+                alt=""
+                className="w-8 h-8 rounded-full object-cover border-2 border-primary/30"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center text-xs font-black text-on-primary">
+                {(profile?.name || user?.displayName || user?.email || '?').charAt(0).toUpperCase()}
+              </div>
+            )}
+          </button>
         </div>
       </header>
 
@@ -353,11 +367,18 @@ export default function MyOrdersPage() {
                   <p className="text-xs text-on-surface-variant">{fmtDate(order.createdAt)}</p>
                 </div>
 
-                <div className="text-right shrink-0">
+                <div className="text-right shrink-0 flex flex-col items-end gap-1">
                   <p className="text-base font-price font-black text-on-surface">{fmtBRL(order.total)}</p>
                   <p className="text-[10px] text-on-surface-variant">
                     {order.items?.length} item{order.items?.length !== 1 ? 's' : ''}
                   </p>
+                  {/* CTA comprovante visível no card fechado */}
+                  {order.status === 'confirmado' && !order.paymentProofUrl && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-400/15 text-blue-400 animate-pulse">
+                      <span className="material-symbols-outlined text-[10px]">upload</span>
+                      enviar pix
+                    </span>
+                  )}
                 </div>
 
                 <span className={`material-symbols-outlined text-on-surface-variant text-lg shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>
