@@ -1,8 +1,10 @@
 import { useEffect, useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { collection, onSnapshot, query, where } from 'firebase/firestore'
 import { db } from '../firebase'
 import ProductCard from '../components/ProductCard'
 import useCartStore from '../store/useCartStore'
+import { useAuth } from '../contexts/AuthContext'
 
 const CATEGORIES = [
   { value: 'all', label: 'Todos' },
@@ -17,6 +19,9 @@ export default function StorePage() {
   const [category, setCategory] = useState('all')
   const cartCount = useCartStore(s => s.items.reduce((acc, i) => acc + i.quantity, 0))
   const setOpen = useCartStore(s => s.setOpen)
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
+  const [userMenu, setUserMenu] = useState(false)
 
   useEffect(() => {
     const q = query(collection(db, 'stock_items'), where('available', '>', 0))
@@ -44,24 +49,65 @@ export default function StorePage() {
             <img src="/logo-nome.png" alt="BAD TCG" className="h-8 object-contain object-left" />
             <p className="text-[11px] leading-none mt-0.5" style={{ color: 'rgba(167,139,250,0.7)' }}>TCG & Crochê</p>
           </div>
-          <button
-            onClick={() => setOpen(true)}
-            className="relative p-2 rounded-xl transition-colors"
-            style={{ color: 'rgba(167,139,250,0.9)' }}
-            onMouseEnter={e => e.currentTarget.style.background = 'rgba(167,139,250,0.1)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-            aria-label="Carrinho"
-          >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
-              <path d="M3 6h18M16 10a4 4 0 01-8 0"/>
-            </svg>
-            {cartCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full text-[10px] font-black flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #3525cd, #8127cf)', color: 'white' }}>
-                {cartCount > 9 ? '9+' : cartCount}
-              </span>
+          <div className="flex items-center gap-1">
+            {/* Carrinho */}
+            <button
+              onClick={() => setOpen(true)}
+              className="relative p-2 rounded-xl transition-colors"
+              style={{ color: 'rgba(167,139,250,0.9)' }}
+              aria-label="Carrinho"
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
+                <path d="M3 6h18M16 10a4 4 0 01-8 0"/>
+              </svg>
+              {cartCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full text-[10px] font-black flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #3525cd, #8127cf)', color: 'white' }}>
+                  {cartCount > 9 ? '9+' : cartCount}
+                </span>
+              )}
+            </button>
+
+            {/* Usuário */}
+            {user ? (
+              <div className="relative">
+                <button
+                  onClick={() => setUserMenu(v => !v)}
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black text-white flex-shrink-0"
+                  style={{ background: 'linear-gradient(135deg, #3525cd, #8127cf)' }}
+                  title={user.displayName || user.email}
+                >
+                  {(user.displayName || user.email || '?').charAt(0).toUpperCase()}
+                </button>
+                {userMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setUserMenu(false)} />
+                    <div className="absolute right-0 top-10 z-50 rounded-xl py-1 min-w-[160px] shadow-xl"
+                      style={{ background: '#1a0a2e', border: '1px solid rgba(167,139,250,0.2)' }}>
+                      <p className="px-4 py-2 text-xs font-semibold truncate" style={{ color: 'rgba(167,139,250,0.7)' }}>
+                        {user.displayName || user.email}
+                      </p>
+                      <hr style={{ borderColor: 'rgba(167,139,250,0.1)' }} />
+                      <button
+                        onClick={() => { logout(); setUserMenu(false) }}
+                        className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-white/5 transition-colors"
+                      >
+                        Sair
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              <button
+                onClick={() => navigate('/login')}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all"
+                style={{ background: 'rgba(167,139,250,0.15)', color: '#a78bfa' }}
+              >
+                Entrar
+              </button>
             )}
-          </button>
+          </div>
         </div>
       </header>
 

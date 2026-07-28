@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase'
 import useCartStore from '../store/useCartStore'
+import { useAuth } from '../contexts/AuthContext'
 
 const WA_NUMBER = import.meta.env.VITE_WA_NUMBER || '5541997192058'
 
@@ -29,13 +30,26 @@ export default function CheckoutPage() {
   const items = useCartStore(s => s.items)
   const clear = useCartStore(s => s.clear)
   const navigate = useNavigate()
+  const { user } = useAuth()
 
   const [name, setName] = useState('')
   const [contact, setContact] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
 
+  // Redireciona para login se não estiver autenticado
+  useEffect(() => {
+    if (user === null) navigate('/login?next=/checkout', { replace: true })
+  }, [user, navigate])
+
+  // Pré-preenche nome com o do Google/cadastro
+  useEffect(() => {
+    if (user?.displayName && !name) setName(user.displayName)
+  }, [user])
+
   const total = items.reduce((s, i) => s + i.unitPrice * i.quantity, 0)
+
+  if (user === undefined) return null // carregando auth
 
   if (items.length === 0) {
     return (
@@ -60,6 +74,8 @@ export default function CheckoutPage() {
       const docRef = await addDoc(collection(db, 'orders'), {
         customerName: name.trim(),
         customerContact: contact.trim(),
+        customerEmail: user?.email ?? null,
+        uid: user?.uid ?? null,
         items: items.map(i => ({
           id: i.id,
           name: i.name,
