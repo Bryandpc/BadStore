@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { collection, query, where, onSnapshot } from 'firebase/firestore'
+import { collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -70,6 +70,62 @@ function OrderTimeline({ status }) {
           )
         })}
       </div>
+    </div>
+  )
+}
+
+function NoteField({ order }) {
+  const [text, setText] = useState(order.customerNote ?? '')
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  const dirty = text !== (order.customerNote ?? '')
+
+  const handleSave = async () => {
+    if (!dirty) return
+    setSaving(true)
+    try {
+      await updateDoc(doc(db, 'orders', order.id), {
+        customerNote: text.trim(),
+        customerNoteAt: serverTimestamp(),
+      })
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const canEdit = !['entregue', 'cancelado'].includes(order.status)
+
+  return (
+    <div className="px-4 pb-4 pt-1 border-t border-outline-variant/30 space-y-2">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Deixar um recado</p>
+      <textarea
+        rows={2}
+        disabled={!canEdit}
+        placeholder={canEdit ? 'Alguma observação para o pedido? Ex: endereço, preferência de entrega...' : 'Pedido finalizado.'}
+        value={text}
+        onChange={e => { setText(e.target.value); setSaved(false) }}
+        className="w-full px-3 py-2 rounded-lg border border-outline-variant bg-surface-container text-on-surface text-xs resize-none focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition placeholder:text-on-surface-variant/40 disabled:opacity-50 disabled:cursor-not-allowed"
+      />
+      {canEdit && (
+        <button
+          onClick={handleSave}
+          disabled={!dirty || saving}
+          className={[
+            'text-xs font-bold px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 disabled:opacity-40',
+            saved ? 'bg-green-600/20 text-green-400' : 'bg-primary/10 text-primary hover:bg-primary/20',
+          ].join(' ')}
+        >
+          <span className="material-symbols-outlined text-sm">
+            {saved ? 'check' : saving ? 'hourglass_empty' : 'send'}
+          </span>
+          {saved ? 'Enviado!' : saving ? 'Enviando...' : 'Enviar recado'}
+        </button>
+      )}
     </div>
   )
 }
@@ -199,6 +255,9 @@ export default function MyOrdersPage() {
 
                   {/* Timeline */}
                   <OrderTimeline status={order.status} />
+
+                  {/* Recado do cliente */}
+                  <NoteField order={order} />
                 </>
               )}
             </div>

@@ -5,14 +5,12 @@ import { db } from '../firebase'
 import useCartStore from '../store/useCartStore'
 import { useAuth } from '../contexts/AuthContext'
 
-const WA_NUMBER = import.meta.env.VITE_WA_NUMBER || '5541997192058'
 const RATE_LIMIT_MINUTES = 3
 
 function fmtBRL(val) {
   return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
-// Detecta se é telefone ou @handle
 function detectContactType(value) {
   if (value.startsWith('@')) return 'instagram'
   const digits = value.replace(/\D/g, '')
@@ -20,7 +18,6 @@ function detectContactType(value) {
   return null
 }
 
-// Auto-formata número BR: (XX) XXXXX-XXXX
 function formatPhone(raw) {
   const digits = raw.replace(/\D/g, '').slice(0, 11)
   if (digits.length === 0) return ''
@@ -30,38 +27,18 @@ function formatPhone(raw) {
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`
 }
 
-// Valida: telefone BR (10–11 dígitos) ou @handle (1–30 chars válidos)
 function validateContact(value) {
   const v = value.trim()
   if (!v) return { valid: false, msg: 'Preencha seu WhatsApp ou @instagram.' }
-
   if (v.startsWith('@')) {
     if (!/^@[a-zA-Z0-9._]{1,30}$/.test(v))
       return { valid: false, msg: 'Handle inválido. Use @usuario com letras, números, . ou _' }
     return { valid: true, msg: null }
   }
-
   const digits = v.replace(/\D/g, '')
-  if (digits.length < 10)
-    return { valid: false, msg: 'Número incompleto. Informe DDD + número.' }
-  if (digits.length > 11)
-    return { valid: false, msg: 'Número muito longo. Verifique o formato.' }
+  if (digits.length < 10) return { valid: false, msg: 'Número incompleto. Informe DDD + número.' }
+  if (digits.length > 11) return { valid: false, msg: 'Número muito longo. Verifique o formato.' }
   return { valid: true, msg: null }
-}
-
-function buildWaMessage(items, total, name, contact, orderId) {
-  const lines = items
-    .map(i => `• ${i.quantity}x ${i.name} — ${fmtBRL(i.unitPrice * i.quantity)}`)
-    .join('\n')
-
-  return (
-    `Olá! Gostaria de fazer um pedido 🛒\n\n` +
-    `${lines}\n\n` +
-    `Total: ${fmtBRL(total)}\n` +
-    `Nome: ${name}\n` +
-    `Contato: ${contact}\n\n` +
-    `Pedido #${orderId.slice(-6).toUpperCase()}`
-  )
 }
 
 export default function CheckoutPage() {
@@ -76,6 +53,7 @@ export default function CheckoutPage() {
   const [contactTouched, setContactTouched] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
+  const [successOrderId, setSuccessOrderId] = useState(null)
 
   useEffect(() => {
     if (user === null) navigate('/login?next=/checkout', { replace: true })
@@ -149,13 +127,8 @@ export default function CheckoutPage() {
       })
 
       localStorage.setItem(rlKey, Date.now().toString())
-
-      const msg = buildWaMessage(items, total, name.trim(), contact.trim(), docRef.id)
-      const url = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(msg)}`
-
       clear()
-      window.open(url, '_blank')
-      navigate('/?pedido=ok')
+      setSuccessOrderId(docRef.id)
     } catch (err) {
       setError('Erro ao registrar pedido. Tente novamente.')
       console.error(err)
@@ -165,6 +138,45 @@ export default function CheckoutPage() {
   }
 
   if (user === undefined) return null
+
+  if (successOrderId) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 gap-6 text-center">
+        <div className="flex flex-col items-center gap-4 animate-fade-in">
+          <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
+            <span className="material-symbols-outlined text-5xl text-primary">check_circle</span>
+          </div>
+          <div>
+            <h2 className="text-xl font-display font-black text-on-surface">Pedido recebido!</h2>
+            <p className="text-sm text-on-surface-variant mt-1">
+              Estamos preparando tudo com carinho para você.
+            </p>
+          </div>
+          <div className="bg-surface-container-low border border-outline-variant rounded-xl px-5 py-3 text-center">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-0.5">Número do pedido</p>
+            <p className="text-lg font-mono font-black text-primary">#{successOrderId.slice(-6).toUpperCase()}</p>
+          </div>
+          <p className="text-xs text-on-surface-variant max-w-xs leading-relaxed">
+            Acompanhe o status em <strong className="text-on-surface">Meus Pedidos</strong>. Entraremos em contato assim que confirmarmos.
+          </p>
+        </div>
+        <div className="flex flex-col gap-3 w-full max-w-xs">
+          <button
+            onClick={() => navigate('/meus-pedidos')}
+            className="w-full py-3 rounded-xl font-bold text-sm bg-primary text-on-primary hover:opacity-90 transition-opacity shadow-lg"
+          >
+            Ver meus pedidos
+          </button>
+          <button
+            onClick={() => navigate('/')}
+            className="w-full py-3 rounded-xl font-bold text-sm bg-surface-container-low border border-outline-variant text-on-surface hover:bg-surface-container transition-colors"
+          >
+            Continuar comprando
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   if (items.length === 0) {
     return (
@@ -302,16 +314,15 @@ export default function CheckoutPage() {
             <button
               type="submit"
               disabled={!canSubmit}
-              className="w-full py-3.5 rounded-lg font-bold text-sm active:scale-[.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg text-white bg-[#25d366] hover:bg-[#20ba5a] disabled:cursor-not-allowed"
+              className="w-full py-3.5 rounded-lg font-bold text-sm active:scale-[.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg bg-primary text-on-primary hover:opacity-90 disabled:cursor-not-allowed"
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
-                <path d="M11.99 0C5.373 0 0 5.373 0 11.99c0 2.117.555 4.099 1.525 5.822L0 24l6.335-1.54A11.945 11.945 0 0011.99 24C18.607 24 24 18.627 24 11.99 24 5.373 18.607 0 11.99 0z" opacity=".5"/>
-              </svg>
-              {submitting ? 'Registrando...' : 'Enviar pedido pelo WhatsApp'}
+              <span className="material-symbols-outlined text-base">
+                {submitting ? 'hourglass_empty' : 'check_circle'}
+              </span>
+              {submitting ? 'Confirmando...' : 'Confirmar pedido'}
             </button>
             <p className="text-[11px] text-on-surface-variant text-center mt-2">
-              Seu pedido será registrado e você será redirecionado para o WhatsApp para confirmar.
+              Seu pedido será registrado e você poderá acompanhar o status em Meus Pedidos.
             </p>
           </div>
         </form>
