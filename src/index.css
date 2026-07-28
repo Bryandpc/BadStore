@@ -22,6 +22,9 @@
   .glow-hover:hover {
     box-shadow: 0 0 24px rgba(124, 58, 237, 0.3);
   }
+  .animate-fade-in {
+    animation: fade-in 0.25s ease-out both;
+  }
 }
 
 ::-webkit-scrollbar { width: 8px; }

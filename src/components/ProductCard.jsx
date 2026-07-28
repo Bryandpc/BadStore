@@ -35,7 +35,6 @@ function ImageLightbox({ src, alt, onClose }) {
 export default function ProductCard({ item }) {
   const add = useCartStore(s => s.add)
   const cartItems = useCartStore(s => s.items)
-  const setOpen = useCartStore(s => s.setOpen)
   const [lightbox, setLightbox] = useState(false)
   const [addedPop, setAddedPop] = useState(false)
 
@@ -48,7 +47,6 @@ export default function ProductCard({ item }) {
     // crochê: available fictício alto para não bloquear quantidade
     const available = isPreorder ? 999 : item.available
     add({ id: item.id, name: item.name, imageUrl: item.imageUrl, unitPrice: item.targetPrice, available, saleCategory: item.saleCategory, itemSubtype: item.itemSubtype })
-    setOpen(true)
     setAddedPop(true)
     setTimeout(() => setAddedPop(false), 400)
   }
