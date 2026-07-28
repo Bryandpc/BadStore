@@ -37,6 +37,7 @@ export default function ProductCard({ item }) {
   const cartItems = useCartStore(s => s.items)
   const [lightbox, setLightbox] = useState(false)
   const [addedPop, setAddedPop] = useState(false)
+  const [cardFlash, setCardFlash] = useState(false)
 
   const isPreorder = item.saleCategory === 'croche'
   const isCustomOrder = item.isCustomOrder === true
@@ -48,7 +49,9 @@ export default function ProductCard({ item }) {
     const available = isPreorder ? 999 : item.available
     add({ id: item.id, name: item.name, imageUrl: item.imageUrl, unitPrice: item.targetPrice, available, saleCategory: item.saleCategory, itemSubtype: item.itemSubtype })
     setAddedPop(true)
-    setTimeout(() => setAddedPop(false), 400)
+    setCardFlash(true)
+    setTimeout(() => setAddedPop(false), 600)
+    setTimeout(() => setCardFlash(false), 500)
   }
 
   if (isCustomOrder) {
@@ -103,7 +106,7 @@ export default function ProductCard({ item }) {
     {lightbox && item.imageUrl && (
       <ImageLightbox src={item.imageUrl} alt={item.name} onClose={() => setLightbox(false)} />
     )}
-    <div className={`group bg-surface-container-low rounded-xl overflow-hidden transition-all duration-300 flex flex-col border border-transparent hover:border-outline-variant hover:-translate-y-0.5 ${isPreorder || item.available > 0 ? 'glow-hover' : 'opacity-60'}`}>
+    <div className={`group bg-surface-container-low rounded-xl overflow-hidden transition-all duration-300 flex flex-col border border-transparent hover:border-outline-variant hover:-translate-y-0.5 ${isPreorder || item.available > 0 ? 'glow-hover' : 'opacity-60'} ${cardFlash ? 'animate-card-flash' : ''}`}>
       {/* Image */}
       <div
         className="relative h-44 overflow-hidden bg-surface-container flex items-center justify-center p-3 ring-1 ring-inset ring-white/10"

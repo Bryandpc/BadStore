@@ -5,6 +5,7 @@ import { db } from '../firebase'
 import ProductCard from '../components/ProductCard'
 import useCartStore from '../store/useCartStore'
 import { useAuth } from '../contexts/AuthContext'
+import NotificationBell from '../components/NotificationBell'
 
 const WA_GROUP = 'https://chat.whatsapp.com/LNFKF4WHzXE9hpaaycAosa'
 
@@ -35,6 +36,7 @@ export default function StorePage() {
   const navigate = useNavigate()
 
   const cartCount = cartItems.reduce((acc, i) => acc + i.quantity, 0)
+  const cartTotal = cartItems.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0)
 
   useEffect(() => {
     const q = query(collection(db, 'stock_items'))
@@ -116,6 +118,7 @@ export default function StorePage() {
   }, [filtered, activeSet, isCroche])
 
   return (
+    <>
     <div className="min-h-screen bg-background text-on-background flex flex-col">
       {/* Header — compacto, só busca + ações */}
       <header className="sticky top-0 z-50 border-b border-outline-variant bg-background/95 backdrop-blur-md">
@@ -159,6 +162,7 @@ export default function StorePage() {
                 </span>
               )}
             </button>
+            <NotificationBell />
 
             {user ? (
               <div className="relative">
@@ -451,5 +455,21 @@ export default function StorePage() {
       </div>
 
     </div>
+
+    {/* Floating cart FAB */}
+    {cartCount > 0 && (
+      <button
+        key={`fab-${cartCount}`}
+        onClick={() => setOpen(true)}
+        className="fixed bottom-6 right-6 z-30 flex items-center gap-2.5 bg-primary-container text-on-primary shadow-2xl rounded-full pl-4 pr-5 py-3 font-bold text-sm animate-fab-pop hover:brightness-110 active:scale-95 transition-all"
+      >
+        <span className="material-symbols-outlined text-xl animate-float">shopping_cart</span>
+        <div className="flex flex-col items-start leading-tight">
+          <span className="text-[11px] opacity-80">{cartCount} {cartCount === 1 ? 'item' : 'itens'}</span>
+          <span className="font-black text-sm">{cartTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+        </div>
+      </button>
+    )}
+    </>
   )
 }

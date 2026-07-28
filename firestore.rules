@@ -11,9 +11,12 @@ service cloud.firestore {
     }
 
     // ── users ────────────────────────────────────────────────────────────────
-    // Cada usuário lê e escreve apenas seu próprio documento
-    // Usado para: perfil (name, phone, photoUrl) e token FCM
+    // Cada usuário lê e escreve apenas seu próprio documento e subcoleções
+    // Usado para: perfil (name, phone, photoUrl), token FCM e notificações
     match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+    match /users/{uid}/notifications/{notifId} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }
 
