@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp } from 'firebase/firestore'
-import { db } from '../firebase'
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
+import { db, storage } from '../firebase'
 import { useAuth } from '../contexts/AuthContext'
 
 function fmtBRL(val) {
@@ -16,16 +17,23 @@ function fmtDate(ts) {
 }
 
 const STATUS = {
-  draft:      { label: 'Aguardando',  color: 'text-amber-400',   bg: 'bg-amber-400/10 border-amber-400/30',  icon: 'schedule' },
-  confirmado: { label: 'Confirmado',  color: 'text-blue-400',    bg: 'bg-blue-400/10 border-blue-400/30',    icon: 'check_circle' },
-  separando:  { label: 'Separando',   color: 'text-primary',     bg: 'bg-primary/10 border-primary/30',      icon: 'inventory_2' },
-  enviado:    { label: 'Enviado',     color: 'text-green-400',   bg: 'bg-green-400/10 border-green-400/30',  icon: 'local_shipping' },
-  entregue:   { label: 'Entregue',   color: 'text-on-surface-variant', bg: 'bg-surface-container border-outline-variant', icon: 'done_all' },
-  cancelado:  { label: 'Cancelado',  color: 'text-error',       bg: 'bg-error/10 border-error/30',          icon: 'cancel' },
+  draft:               { label: 'Aguardando',          color: 'text-amber-400',        bg: 'bg-amber-400/10 border-amber-400/30',    icon: 'schedule' },
+  confirmado:          { label: 'Ag. Pagamento',        color: 'text-blue-400',         bg: 'bg-blue-400/10 border-blue-400/30',      icon: 'pix' },
+  confirmado_pago:     { label: 'Comprovante enviado',  color: 'text-teal-400',         bg: 'bg-teal-400/10 border-teal-400/30',      icon: 'check_circle' },
+  separando:           { label: 'Sendo separado',       color: 'text-primary',          bg: 'bg-primary/10 border-primary/30',        icon: 'inventory_2' },
+  enviado:             { label: 'Enviado',              color: 'text-green-400',        bg: 'bg-green-400/10 border-green-400/30',    icon: 'local_shipping' },
+  entregue:            { label: 'Entregue',             color: 'text-on-surface-variant', bg: 'bg-surface-container border-outline-variant', icon: 'done_all' },
+  cancelado:           { label: 'Cancelado',            color: 'text-error',            bg: 'bg-error/10 border-error/30',            icon: 'cancel' },
 }
 
-function StatusBadge({ status }) {
-  const s = STATUS[status] ?? STATUS.draft
+function resolveStatus(order) {
+  if (order.status === 'confirmado' && order.paymentProofUrl) return 'confirmado_pago'
+  return order.status
+}
+
+function StatusBadge({ order }) {
+  const key = resolveStatus(order)
+  const s = STATUS[key] ?? STATUS.draft
   return (
     <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${s.color} ${s.bg}`}>
       <span className="material-symbols-outlined text-[11px]">{s.icon}</span>
@@ -75,6 +83,90 @@ function OrderTimeline({ status }) {
 }
 
 const REPLY_SEEN_KEY = 'reply_seen_'
+
+function ProofField({ order }) {
+  const fileRef = useRef(null)
+  const [uploading, setUploading] = useState(false)
+  const [preview, setPreview] = useState(null)
+  const [error, setError] = useState(null)
+
+  // Já enviou comprovante
+  if (order.paymentProofUrl) {
+    return (
+      <div className="px-4 py-3 border-t border-outline-variant/30 bg-teal-500/5">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="material-symbols-outlined text-teal-400 text-base">check_circle</span>
+          <p className="text-[10px] font-bold text-teal-400 uppercase tracking-wider">Comprovante enviado</p>
+        </div>
+        <a
+          href={order.paymentProofUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-xs text-teal-400 underline underline-offset-2"
+        >
+          <span className="material-symbols-outlined text-sm">open_in_new</span>
+          Ver comprovante
+        </a>
+        <p className="text-[11px] text-on-surface-variant mt-1">Aguardando confirmação da loja.</p>
+      </div>
+    )
+  }
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+    setError(null)
+    setUploading(true)
+    setPreview(URL.createObjectURL(file))
+    try {
+      const storageRef = ref(storage, `payment-proofs/${order.id}_${Date.now()}`)
+      await uploadBytes(storageRef, file)
+      const url = await getDownloadURL(storageRef)
+      await updateDoc(doc(db, 'orders', order.id), {
+        paymentProofUrl: url,
+        paymentProofAt: serverTimestamp(),
+      })
+    } catch (e) {
+      setError('Erro ao enviar. Tente novamente.')
+      setPreview(null)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  return (
+    <div className="px-4 py-3 border-t border-blue-400/20 bg-blue-400/5 space-y-2">
+      <div className="flex items-start gap-2">
+        <span className="material-symbols-outlined text-blue-400 text-base mt-0.5">pix</span>
+        <div>
+          <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Enviar comprovante Pix</p>
+          <p className="text-[11px] text-on-surface-variant mt-0.5 leading-relaxed">
+            Após realizar o pagamento, envie o print ou PDF do comprovante para agilizar a confirmação.
+          </p>
+        </div>
+      </div>
+
+      {preview && (
+        <img src={preview} alt="preview" className="w-full max-h-40 object-contain rounded-lg border border-outline-variant/30" />
+      )}
+
+      {error && <p className="text-xs text-error">{error}</p>}
+
+      <button
+        onClick={() => fileRef.current?.click()}
+        disabled={uploading}
+        className="w-full py-2.5 rounded-xl border-2 border-dashed border-blue-400/40 text-blue-400 text-xs font-bold flex items-center justify-center gap-2 hover:bg-blue-400/10 transition-colors disabled:opacity-50"
+      >
+        <span className="material-symbols-outlined text-base">
+          {uploading ? 'hourglass_empty' : 'upload'}
+        </span>
+        {uploading ? 'Enviando...' : 'Anexar comprovante'}
+      </button>
+      <input ref={fileRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={handleFile} />
+    </div>
+  )
+}
 
 function NoteField({ order }) {
   const [text, setText] = useState(order.customerNote ?? '')
@@ -229,7 +321,8 @@ export default function MyOrdersPage() {
             </button>
           </div>
         ) : orders.map(order => {
-          const st = STATUS[order.status] ?? STATUS.draft
+          const resolvedKey = resolveStatus(order)
+          const st = STATUS[resolvedKey] ?? STATUS.draft
           const isOpen = expanded === order.id
           const isCancelled = order.status === 'cancelado'
           const unseenReply = hasUnseenReply(order)
@@ -249,7 +342,7 @@ export default function MyOrdersPage() {
                     <span className="text-[11px] font-mono font-bold text-on-surface-variant">
                       #{order.id.slice(-6).toUpperCase()}
                     </span>
-                    <StatusBadge status={order.status} />
+                    <StatusBadge order={order} />
                     {unseenReply && (
                       <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/15 text-primary">
                         <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
@@ -295,6 +388,9 @@ export default function MyOrdersPage() {
 
                   {/* Timeline */}
                   <OrderTimeline status={order.status} />
+
+                  {/* Comprovante Pix — só quando aguardando pagamento */}
+                  {order.status === 'confirmado' && <ProofField order={order} />}
 
                   {/* Recado do cliente */}
                   <NoteField order={order} />

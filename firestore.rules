@@ -36,11 +36,11 @@ service cloud.firestore {
       allow read: if request.auth != null
         && resource.data.uid == request.auth.uid;
 
-      // Cliente só pode tocar em customerNote e customerNoteAt — nada mais
+      // Cliente só pode tocar em campos permitidos — nada mais
       allow update: if request.auth != null
         && resource.data.uid == request.auth.uid
         && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['customerNote', 'customerNoteAt']);
+             .hasOnly(['customerNote', 'customerNoteAt', 'paymentProofUrl', 'paymentProofAt']);
 
       allow delete: if false;
     }
