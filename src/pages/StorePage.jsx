@@ -461,7 +461,7 @@ export default function StorePage() {
       <button
         key={`fab-${cartCount}`}
         onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 z-30 flex items-center gap-2.5 bg-primary-container text-on-primary shadow-2xl rounded-full pl-4 pr-5 py-3 font-bold text-sm animate-fab-pop hover:brightness-110 active:scale-95 transition-all"
+        className="fixed bottom-6 left-6 z-30 flex items-center gap-2.5 bg-primary-container text-on-primary shadow-2xl rounded-full pl-4 pr-5 py-3 font-bold text-sm animate-fab-pop hover:brightness-110 active:scale-95 transition-all"
       >
         <span className="material-symbols-outlined text-xl animate-float">shopping_cart</span>
         <div className="flex flex-col items-start leading-tight">
