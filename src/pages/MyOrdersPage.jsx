@@ -1,8 +1,7 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp } from 'firebase/firestore'
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { db, storage } from '../firebase'
+import { db } from '../firebase'
 import { useAuth } from '../contexts/AuthContext'
 
 function fmtBRL(val) {
@@ -159,14 +158,16 @@ function ProofField({ order }) {
     setUploading(true)
     setPreview(URL.createObjectURL(file))
     try {
-      const storageRef = ref(storage, `payment-proofs/${order.id}_${Date.now()}`)
-      await uploadBytes(storageRef, file)
-      const url = await getDownloadURL(storageRef)
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch('/api/upload-proof', { method: 'POST', body: form })
+      if (!res.ok) throw new Error(await res.text())
+      const { url } = await res.json()
       await updateDoc(doc(db, 'orders', order.id), {
         paymentProofUrl: url,
         paymentProofAt: serverTimestamp(),
       })
-    } catch (e) {
+    } catch {
       setError('Erro ao enviar. Tente novamente.')
       setPreview(null)
     } finally {
