@@ -11,7 +11,7 @@ import {
 } from 'firebase/auth'
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { app, db, storage } from '../firebase'
+import { app, db, storage, messaging, getToken } from '../firebase'
 
 const auth = getAuth(app)
 const AuthContext = createContext(null)
@@ -26,12 +26,32 @@ export function AuthProvider({ children }) {
       if (u) {
         const snap = await getDoc(doc(db, 'users', u.uid))
         setProfile(snap.exists() ? snap.data() : null)
+        registerFcmToken(u.uid)
       } else {
         setProfile(null)
       }
     })
     return () => unsub()
   }, [])
+
+  const registerFcmToken = async (uid) => {
+    try {
+      if (!('Notification' in window)) return
+      const permission = await Notification.requestPermission()
+      if (permission !== 'granted') return
+      const sw = await navigator.serviceWorker.register('/firebase-messaging-sw.js')
+      const token = await getToken(messaging, {
+        vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
+        serviceWorkerRegistration: sw,
+      })
+      if (token) {
+        await setDoc(doc(db, 'users', uid), { fcmToken: token }, { merge: true })
+      }
+    } catch (e) {
+      // silently ignore — push é opcional
+      console.warn('[fcm] token registration failed:', e.message)
+    }
+  }
 
   const register = (email, password, name) =>
     createUserWithEmailAndPassword(auth, email, password).then(({ user }) =>
