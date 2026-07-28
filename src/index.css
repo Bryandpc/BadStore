@@ -1,32 +1,30 @@
-@import '@fontsource/dm-sans/400.css';
-@import '@fontsource/dm-sans/500.css';
-@import '@fontsource/dm-sans/600.css';
-@import '@fontsource/dm-sans/700.css';
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-@theme {
-  --color-brand: #3525cd;
-  --color-brand-dark: #2a1ea8;
-  --color-brand-end: #8127cf;
-  --font-sans: 'DM Sans', system-ui, -apple-system, sans-serif;
+@layer base {
+  html { color-scheme: dark; }
+  body {
+    background-color: #151120;
+    color: #e8dff5;
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+@layer components {
+  .glass-panel {
+    background: rgba(34, 29, 45, 0.7);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  .glow-hover:hover {
+    box-shadow: 0 0 24px rgba(124, 58, 237, 0.3);
+  }
 }
 
-body {
-  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
-  background: #f4f6f9;
-  color: #191c1e;
-  -webkit-font-smoothing: antialiased;
-}
-
-.brand-gradient {
-  background: linear-gradient(135deg, #3525cd 0%, #8127cf 100%);
-}
-
-.hide-scrollbar::-webkit-scrollbar { display: none; }
-.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: #1d1929; }
+::-webkit-scrollbar-thumb { background: #4a4455; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #d2bbff; }
