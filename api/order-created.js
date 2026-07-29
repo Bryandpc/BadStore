@@ -338,18 +338,6 @@ export default async function handler(req, res) {
       })
     )
 
-    // Send customer confirmation only if email is provided
-    if (customerEmail) {
-      sends.push(
-        resend.emails.send({
-          from:    FROM,
-          to:      customerEmail,
-          subject: `📬 Pedido #${shortId} recebido – BAD TCG`,
-          html:    buildCustomerEmailHtml({ orderId, customerName, items, total }),
-        })
-      )
-    }
-
     await Promise.allSettled(sends)
 
     return res.status(200).json({ ok: true })
