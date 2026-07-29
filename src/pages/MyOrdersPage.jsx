@@ -216,7 +216,7 @@ function ProofField({ order }) {
         </span>
         <span className="text-sm">{uploading ? 'Enviando...' : 'Anexar comprovante'}</span>
         <span className="text-[11px] text-on-surface-variant font-normal">Foto, print ou PDF</span>
-        <input type="file" accept="image/*,application/pdf" capture="environment" className="hidden" onChange={handleFile} disabled={uploading} />
+        <input type="file" accept="image/*,application/pdf" className="hidden" onChange={handleFile} disabled={uploading} />
       </label>
     </div>
   )

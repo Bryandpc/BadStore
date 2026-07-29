@@ -32,7 +32,7 @@ function ImageLightbox({ src, alt, onClose }) {
   )
 }
 
-export default function ProductCard({ item }) {
+export default function ProductCard({ item, onCustomOrder }) {
   const add = useCartStore(s => s.add)
   const cartItems = useCartStore(s => s.items)
   const [lightbox, setLightbox] = useState(false)
@@ -86,13 +86,10 @@ export default function ProductCard({ item }) {
           <div className="mt-3 flex justify-between items-center gap-2">
             <span className="font-price text-sm font-bold text-pink-300">A combinar</span>
             <button
-              onClick={() => {
-                const msg = `Olá! Gostaria de solicitar um *chaveiro personalizado de crochê* 🧶\nPoderia me passar mais informações sobre preço e prazo?`
-                window.open(`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(msg)}`, '_blank')
-              }}
+              onClick={() => onCustomOrder?.()}
               className="bg-pink-500/20 hover:bg-pink-500/30 border border-pink-500/40 transition-colors px-2 py-1.5 rounded-lg text-pink-300 text-[10px] font-bold active:scale-95 whitespace-nowrap flex items-center gap-1"
             >
-              <span className="material-symbols-outlined text-sm">chat</span>
+              <span className="material-symbols-outlined text-sm">edit_note</span>
               Solicitar
             </button>
           </div>

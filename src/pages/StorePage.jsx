@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { collection, onSnapshot, query } from 'firebase/firestore'
+import { collection, onSnapshot, query, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase'
 import ProductCard from '../components/ProductCard'
 import useCartStore from '../store/useCartStore'
@@ -27,6 +27,13 @@ export default function StorePage() {
   const [showQR, setShowQR] = useState(false)
   const [userMenu, setUserMenu] = useState(false)
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
+  const [customOrderOpen, setCustomOrderOpen] = useState(false)
+  const [customOrderDesc, setCustomOrderDesc] = useState('')
+  const [customOrderName, setCustomOrderName] = useState('')
+  const [customOrderPhone, setCustomOrderPhone] = useState('')
+  const [customOrderLoading, setCustomOrderLoading] = useState(false)
+  const [customOrderSuccess, setCustomOrderSuccess] = useState(false)
+  const [customOrderError, setCustomOrderError] = useState('')
 
   const isCroche = activeCategory === 'croche'
 
@@ -117,8 +124,131 @@ export default function StorePage() {
     return result
   }, [filtered, activeSet, isCroche])
 
+  async function submitCustomOrder() {
+    const name = customOrderName.trim() || profile?.name || user?.displayName || ''
+    const phone = customOrderPhone.trim() || profile?.phone || ''
+    const desc = customOrderDesc.trim()
+    if (!desc) { setCustomOrderError('Descreva o que você quer 🧶'); return }
+    if (!name) { setCustomOrderError('Informe seu nome'); return }
+    if (!phone) { setCustomOrderError('Informe seu WhatsApp para contato'); return }
+    if (!user) { navigate('/login'); return }
+
+    setCustomOrderLoading(true)
+    setCustomOrderError('')
+    try {
+      await addDoc(collection(db, 'orders'), {
+        customerName: name,
+        customerContact: phone,
+        customerEmail: user.email ?? '',
+        customerPhotoUrl: profile?.photoUrl || user.photoURL || '',
+        uid: user.uid,
+        items: [{ id: 'custom-order', name: 'Chaveiro Personalizado', quantity: 1, unitPrice: 0 }],
+        total: 0,
+        status: 'draft',
+        origem: 'badstore',
+        saleCategory: 'croche',
+        customerNote: desc,
+        createdAt: serverTimestamp(),
+      })
+      setCustomOrderSuccess(true)
+      setCustomOrderDesc('')
+    } catch (err) {
+      setCustomOrderError('Erro ao enviar: ' + err.message)
+    } finally {
+      setCustomOrderLoading(false)
+    }
+  }
+
   return (
     <>
+    {customOrderOpen && (
+      <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-4" onClick={() => { setCustomOrderOpen(false); setCustomOrderSuccess(false); setCustomOrderError('') }}>
+        <div className="w-full max-w-md bg-surface-container-low rounded-2xl overflow-hidden shadow-2xl border border-pink-500/30" onClick={e => e.stopPropagation()}>
+          <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant bg-surface-container">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-pink-300">auto_fix_high</span>
+              <h2 className="font-display font-bold text-on-surface text-base">Chaveiro Personalizado</h2>
+            </div>
+            <button onClick={() => { setCustomOrderOpen(false); setCustomOrderSuccess(false); setCustomOrderError('') }} className="text-on-surface-variant hover:text-on-surface transition-colors">
+              <span className="material-symbols-outlined text-xl">close</span>
+            </button>
+          </div>
+
+          {customOrderSuccess ? (
+            <div className="p-6 text-center space-y-4">
+              <span className="material-symbols-outlined text-5xl text-pink-300">check_circle</span>
+              <div>
+                <p className="font-display font-bold text-on-surface text-lg">Pedido enviado!</p>
+                <p className="text-sm text-on-surface-variant mt-1">Vamos entrar em contato para combinar os detalhes 🧶</p>
+              </div>
+              <button onClick={() => { setCustomOrderOpen(false); setCustomOrderSuccess(false); navigate('/meus-pedidos') }} className="w-full bg-pink-500/20 hover:bg-pink-500/30 border border-pink-500/40 text-pink-300 font-bold py-2.5 rounded-xl text-sm transition-colors">
+                Ver meus pedidos
+              </button>
+            </div>
+          ) : (
+            <div className="p-5 space-y-4">
+              <p className="text-[11px] text-on-surface-variant leading-relaxed">
+                Descreva o personagem, animal ou tema. Pokémon, anime, mascote — feito à mão com amor. O preço será combinado antes da produção.
+              </p>
+
+              <div>
+                <label className="text-xs font-semibold text-on-surface-variant mb-1.5 block">O que você quer? *</label>
+                <textarea
+                  rows={4}
+                  value={customOrderDesc}
+                  onChange={e => setCustomOrderDesc(e.target.value)}
+                  placeholder="Ex: Pikachu segurando uma pokébola, tamanho médio, para chave de carro..."
+                  className="w-full bg-surface-container border border-outline-variant rounded-xl px-3 py-2.5 text-sm text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-2 focus:ring-pink-500/40 focus:border-pink-500/50 resize-none transition-colors"
+                />
+              </div>
+
+              {(!profile?.name && !user?.displayName) && (
+                <div>
+                  <label className="text-xs font-semibold text-on-surface-variant mb-1.5 block">Seu nome *</label>
+                  <input
+                    type="text"
+                    value={customOrderName}
+                    onChange={e => setCustomOrderName(e.target.value)}
+                    placeholder="Como podemos te chamar?"
+                    className="w-full bg-surface-container border border-outline-variant rounded-xl px-3 py-2.5 text-sm text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-2 focus:ring-pink-500/40 focus:border-pink-500/50 transition-colors"
+                  />
+                </div>
+              )}
+
+              {!profile?.phone && (
+                <div>
+                  <label className="text-xs font-semibold text-on-surface-variant mb-1.5 block">WhatsApp para contato *</label>
+                  <input
+                    type="tel"
+                    value={customOrderPhone}
+                    onChange={e => setCustomOrderPhone(e.target.value)}
+                    placeholder="(41) 99999-9999"
+                    className="w-full bg-surface-container border border-outline-variant rounded-xl px-3 py-2.5 text-sm text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-2 focus:ring-pink-500/40 focus:border-pink-500/50 transition-colors"
+                  />
+                </div>
+              )}
+
+              {customOrderError && (
+                <p className="text-xs text-error font-semibold">{customOrderError}</p>
+              )}
+
+              <button
+                onClick={submitCustomOrder}
+                disabled={customOrderLoading || !customOrderDesc.trim()}
+                className="w-full bg-pink-500/20 hover:bg-pink-500/30 border border-pink-500/40 disabled:opacity-40 disabled:cursor-not-allowed text-pink-300 font-bold py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2"
+              >
+                {customOrderLoading ? (
+                  <span className="material-symbols-outlined text-lg animate-spin">progress_activity</span>
+                ) : (
+                  <span className="material-symbols-outlined text-lg">send</span>
+                )}
+                {customOrderLoading ? 'Enviando...' : 'Enviar pedido'}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    )}
     <div className="min-h-screen bg-background text-on-background flex flex-col">
       {/* Header — compacto, só busca + ações */}
       <header className="sticky top-0 z-50 border-b border-outline-variant bg-background/95 backdrop-blur-md">
@@ -368,7 +498,16 @@ export default function StorePage() {
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
                     {groupItems.map(item => (
-                      <ProductCard key={item.id} item={item} />
+                      <ProductCard
+                        key={item.id}
+                        item={item}
+                        onCustomOrder={item.isCustomOrder ? () => {
+                          if (!user) { navigate('/login'); return }
+                          setCustomOrderSuccess(false)
+                          setCustomOrderError('')
+                          setCustomOrderOpen(true)
+                        } : undefined}
+                      />
                     ))}
                   </div>
                 </div>

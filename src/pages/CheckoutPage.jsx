@@ -138,6 +138,20 @@ export default function CheckoutPage() {
       localStorage.setItem(rlKey, Date.now().toString())
       clear()
       setSuccessOrderId(docRef.id)
+
+      // Notificação por email — fire and forget, não bloqueia o UX
+      fetch('/api/order-created', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: docRef.id,
+          customerName: finalName,
+          customerEmail: user?.email ?? null,
+          customerContact: finalContact,
+          items: items.map(i => ({ name: i.name, quantity: i.quantity, unitPrice: i.unitPrice })),
+          total,
+        }),
+      }).catch(() => {})
     } catch (err) {
       setError('Erro ao registrar pedido. Tente novamente.')
       console.error(err)
