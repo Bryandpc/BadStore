@@ -32,18 +32,16 @@ export default function StorePage() {
   const [showQR, setShowQR] = useState(false)
   const [userMenu, setUserMenu] = useState(false)
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
-  const [customOrderOpen, setCustomOrderOpen] = useState(false)
-  const [customOrderItems, setCustomOrderItems] = useState([{ desc: '', imageFile: null, imagePreview: null }])
-  const [customOrderName, setCustomOrderName] = useState('')
-  const [customOrderPhone, setCustomOrderPhone] = useState('')
-  const [customOrderLoading, setCustomOrderLoading] = useState(false)
-  const [customOrderSuccess, setCustomOrderSuccess] = useState(false)
-  const [customOrderError, setCustomOrderError] = useState('')
+  const [customSheetOpen, setCustomSheetOpen] = useState(false)
+  const [customDesc, setCustomDesc] = useState('')
+  const [customImageFile, setCustomImageFile] = useState(null)
+  const [customImagePreview, setCustomImagePreview] = useState(null)
 
   const isCroche = activeCategory === 'croche'
 
   const cartItems = useCartStore(s => s.items)
   const add = useCartStore(s => s.add)
+  const addCustom = useCartStore(s => s.addCustom)
   const setOpen = useCartStore(s => s.setOpen)
   const { user, profile, logout } = useAuth()
   const navigate = useNavigate()
@@ -148,80 +146,39 @@ export default function StorePage() {
     return result
   }, [filtered, activeSet, isCroche])
 
-  function updateCustomItem(idx, field, value) {
-    setCustomOrderItems(prev => prev.map((it, i) => i === idx ? { ...it, [field]: value } : it))
-  }
-
-  function addCustomItem() {
-    setCustomOrderItems(prev => [...prev, { desc: '', imageFile: null, imagePreview: null }])
-  }
-
-  function removeCustomItem(idx) {
-    setCustomOrderItems(prev => {
-      const next = prev.filter((_, i) => i !== idx)
-      return next.length === 0 ? [{ desc: '', imageFile: null, imagePreview: null }] : next
-    })
-  }
-
-  function handleCustomImage(idx, file) {
+  function handleCustomImage(file) {
     if (!file) return
-    const preview = URL.createObjectURL(file)
-    setCustomOrderItems(prev => prev.map((it, i) => i === idx ? { ...it, imageFile: file, imagePreview: preview } : it))
+    setCustomImageFile(file)
+    setCustomImagePreview(URL.createObjectURL(file))
   }
 
-  function clearCustomImage(idx) {
-    setCustomOrderItems(prev => prev.map((it, i) => i === idx ? { ...it, imageFile: null, imagePreview: null } : it))
+  function clearCustomImage() {
+    setCustomImageFile(null)
+    setCustomImagePreview(null)
   }
 
-  async function submitCustomOrder() {
-    const name = customOrderName.trim() || profile?.name || user?.displayName || ''
-    const phone = customOrderPhone.trim() || profile?.phone || ''
-    if (!name) { setCustomOrderError('Informe seu nome'); return }
-    if (!phone) { setCustomOrderError('Informe seu WhatsApp para contato'); return }
-    if (customOrderItems.every(it => !it.desc.trim())) { setCustomOrderError('Descreva pelo menos um chaveiro 🧶'); return }
+  function openCustomSheet() {
     if (!user) { navigate('/login'); return }
+    setCustomDesc('')
+    setCustomImageFile(null)
+    setCustomImagePreview(null)
+    setCustomSheetOpen(true)
+  }
 
-    setCustomOrderLoading(true)
-    setCustomOrderError('')
-    try {
-      // Upload imagens para Storage
-      const orderItems = await Promise.all(customOrderItems.map(async (it, idx) => {
-        let imageUrl = null
-        if (it.imageFile) {
-          const path = `custom-orders/${user.uid}/${Date.now()}-${idx}`
-          const snap = await uploadBytes(storageRef(storage, path), it.imageFile)
-          imageUrl = await getDownloadURL(snap.ref)
-        }
-        return {
-          id: 'custom-order',
-          name: 'Chaveiro Personalizado',
-          quantity: 1,
-          unitPrice: 0,
-          desc: it.desc.trim(),
-          ...(imageUrl ? { imageUrl } : {}),
-        }
-      }))
-
-      await addDoc(collection(db, 'orders'), {
-        customerName: name,
-        customerContact: phone,
-        customerEmail: user.email ?? '',
-        customerPhotoUrl: profile?.photoUrl || user.photoURL || '',
-        uid: user.uid,
-        items: orderItems,
-        total: 0,
-        status: 'draft',
-        origem: 'badstore',
-        saleCategory: 'croche',
-        createdAt: serverTimestamp(),
-      })
-      setCustomOrderSuccess(true)
-      setCustomOrderItems([{ desc: '', imageFile: null, imagePreview: null }])
-    } catch (err) {
-      setCustomOrderError('Erro ao enviar: ' + err.message)
-    } finally {
-      setCustomOrderLoading(false)
-    }
+  function addCustomToCart() {
+    if (!customDesc.trim()) return
+    addCustom({
+      name: 'Chaveiro Personalizado',
+      saleCategory: 'croche',
+      isCustomOrder: true,
+      unitPrice: 0,
+      available: 999,
+      desc: customDesc.trim(),
+      imageFile: customImageFile,
+      imagePreview: customImagePreview,
+    })
+    setCustomSheetOpen(false)
+    setOpen(true)
   }
 
   // Carousel crochê — fotos dos itens de crochê com imagem
@@ -248,14 +205,6 @@ export default function StorePage() {
     ? 'Amigurumis, chaveiros e encomendas personalizadas — cada peça é única.'
     : 'Boosters, ETBs, coleções especiais e cartas avulsas — com reestoque semanal.'
 
-  function openCustomOrderModal() {
-    if (!user) { navigate('/login'); return }
-    setCustomOrderSuccess(false)
-    setCustomOrderError('')
-    setCustomOrderItems([{ desc: '', imageFile: null, imagePreview: null }])
-    setCustomOrderOpen(true)
-  }
-
   return (
     <>
     {/* Lightbox */}
@@ -269,142 +218,68 @@ export default function StorePage() {
       document.body
     )}
 
-    {/* Custom order modal */}
-    {customOrderOpen && (
-      <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-4" onClick={() => { setCustomOrderOpen(false); setCustomOrderSuccess(false); setCustomOrderError('') }}>
-        <div className="w-full max-w-md bg-white rounded-2xl overflow-hidden shadow-2xl border border-outline-variant" onClick={e => e.stopPropagation()}>
+    {/* Chaveiro personalizado — sheet de adicionar ao carrinho */}
+    {customSheetOpen && (
+      <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4" onClick={() => setCustomSheetOpen(false)}>
+        <div className="w-full max-w-md bg-white rounded-2xl overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
           <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant" style={{ background: '#f0dbff' }}>
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-lg" style={{ color: '#8127cf' }}>auto_fix_high</span>
               <h2 className="font-display font-bold text-base" style={{ color: '#6900b3' }}>Chaveiro Personalizado</h2>
             </div>
-            <button onClick={() => { setCustomOrderOpen(false); setCustomOrderSuccess(false); setCustomOrderError('') }} className="transition-colors" style={{ color: '#6900b3' }}>
+            <button onClick={() => setCustomSheetOpen(false)} style={{ color: '#6900b3', background: 'none', border: 'none', cursor: 'pointer', display: 'flex' }}>
               <span className="material-symbols-outlined text-xl">close</span>
             </button>
           </div>
 
-          {customOrderSuccess ? (
-            <div className="p-6 text-center space-y-4">
-              <span className="material-symbols-outlined text-5xl" style={{ color: '#8127cf' }}>check_circle</span>
-              <div>
-                <p className="font-display font-bold text-on-surface text-lg">Pedido enviado!</p>
-                <p className="text-sm text-on-surface-variant mt-1">Vamos entrar em contato para combinar os detalhes 🧶</p>
-              </div>
-              <button onClick={() => { setCustomOrderOpen(false); setCustomOrderSuccess(false); navigate('/meus-pedidos') }} className="w-full font-bold py-2.5 rounded-xl text-sm transition-colors" style={{ background: '#f0dbff', color: '#6900b3', border: '1px solid #d8b4fe' }}>
-                Ver meus pedidos
-              </button>
+          <div className="p-5 space-y-4">
+            <p className="text-xs text-on-surface-variant leading-relaxed">
+              Descreva o personagem, animal ou tema. O preço será combinado antes da produção.
+            </p>
+
+            <div>
+              <label className="text-xs font-semibold text-on-surface-variant block mb-1.5">Descrição *</label>
+              <textarea
+                rows={3}
+                value={customDesc}
+                onChange={e => setCustomDesc(e.target.value)}
+                placeholder="Ex: Pikachu segurando pokébola, tamanho médio, para chave de carro..."
+                autoFocus
+                className="w-full bg-surface-container border border-outline-variant rounded-xl px-3 py-2.5 text-sm text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-300 resize-none transition-colors"
+              />
             </div>
-          ) : (
-            <div className="p-5 space-y-5 overflow-y-auto max-h-[70vh]">
-              <p className="text-[11px] text-on-surface-variant leading-relaxed">
-                Descreva o personagem, animal ou tema de cada chaveiro. Você pode anexar uma imagem de referência por item. O preço será combinado antes da produção.
-              </p>
 
-              {/* Lista de chaveiros */}
-              <div className="space-y-4">
-                {customOrderItems.map((item, idx) => (
-                  <div key={idx} className="rounded-xl border border-outline-variant overflow-hidden" style={{ background: '#fdf8ff' }}>
-                    <div className="flex items-center justify-between px-3 py-2 border-b border-outline-variant/50" style={{ background: '#f0dbff' }}>
-                      <span className="text-xs font-bold" style={{ color: '#6900b3' }}>Chaveiro {idx + 1}</span>
-                      {customOrderItems.length > 1 && (
-                        <button onClick={() => removeCustomItem(idx)} className="transition-colors" style={{ color: '#9333ea' }}>
-                          <span className="material-symbols-outlined text-base">close</span>
-                        </button>
-                      )}
-                    </div>
-                    <div className="p-3 space-y-3">
-                      <textarea
-                        rows={3}
-                        value={item.desc}
-                        onChange={e => updateCustomItem(idx, 'desc', e.target.value)}
-                        placeholder="Ex: Pikachu segurando pokébola, tamanho médio..."
-                        className="w-full bg-white border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-300 resize-none transition-colors"
-                      />
-
-                      {/* Upload de imagem */}
-                      {item.imagePreview ? (
-                        <div className="relative inline-block">
-                          <img src={item.imagePreview} alt="referência" className="w-20 h-20 object-cover rounded-lg border border-outline-variant" />
-                          <button
-                            onClick={() => clearCustomImage(idx)}
-                            className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-error text-white flex items-center justify-center shadow"
-                          >
-                            <span className="material-symbols-outlined text-[12px]">close</span>
-                          </button>
-                        </div>
-                      ) : (
-                        <label className="flex items-center gap-2 cursor-pointer group w-fit">
-                          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-purple-300 text-xs font-semibold transition-colors group-hover:bg-purple-50" style={{ color: '#8127cf' }}>
-                            <span className="material-symbols-outlined text-sm">add_photo_alternate</span>
-                            Adicionar referência
-                          </div>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={e => e.target.files?.[0] && handleCustomImage(idx, e.target.files[0])}
-                          />
-                        </label>
-                      )}
-                    </div>
+            <div>
+              <label className="text-xs font-semibold text-on-surface-variant block mb-1.5">Imagem de referência (opcional)</label>
+              {customImagePreview ? (
+                <div className="flex items-center gap-3">
+                  <img src={customImagePreview} alt="referência" className="w-16 h-16 object-cover rounded-lg border border-outline-variant" />
+                  <button onClick={clearCustomImage} className="text-xs text-error font-semibold flex items-center gap-1 hover:opacity-80 transition-opacity">
+                    <span className="material-symbols-outlined text-sm">delete</span>
+                    Remover
+                  </button>
+                </div>
+              ) : (
+                <label className="flex items-center gap-2 cursor-pointer w-fit">
+                  <div className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-dashed border-purple-300 text-xs font-semibold hover:bg-purple-50 transition-colors" style={{ color: '#8127cf' }}>
+                    <span className="material-symbols-outlined text-sm">add_photo_alternate</span>
+                    Adicionar referência
                   </div>
-                ))}
-              </div>
-
-              <button
-                onClick={addCustomItem}
-                className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-lg border border-dashed transition-colors hover:bg-purple-50"
-                style={{ color: '#8127cf', borderColor: '#d8b4fe' }}
-              >
-                <span className="material-symbols-outlined text-sm">add_circle</span>
-                Adicionar outro chaveiro
-              </button>
-
-              {(!profile?.name && !user?.displayName) && (
-                <div>
-                  <label className="text-xs font-semibold text-on-surface-variant mb-1.5 block">Seu nome *</label>
-                  <input
-                    type="text"
-                    value={customOrderName}
-                    onChange={e => setCustomOrderName(e.target.value)}
-                    placeholder="Como podemos te chamar?"
-                    className="w-full bg-surface-container border border-outline-variant rounded-xl px-3 py-2.5 text-sm text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-2 focus:ring-secondary/30 focus:border-secondary/50 transition-colors"
-                  />
-                </div>
+                  <input type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && handleCustomImage(e.target.files[0])} />
+                </label>
               )}
-
-              {!profile?.phone && (
-                <div>
-                  <label className="text-xs font-semibold text-on-surface-variant mb-1.5 block">WhatsApp para contato *</label>
-                  <input
-                    type="tel"
-                    value={customOrderPhone}
-                    onChange={e => setCustomOrderPhone(e.target.value)}
-                    placeholder="(41) 99999-9999"
-                    className="w-full bg-surface-container border border-outline-variant rounded-xl px-3 py-2.5 text-sm text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-2 focus:ring-secondary/30 focus:border-secondary/50 transition-colors"
-                  />
-                </div>
-              )}
-
-              {customOrderError && (
-                <p className="text-xs text-error font-semibold">{customOrderError}</p>
-              )}
-
-              <button
-                onClick={submitCustomOrder}
-                disabled={customOrderLoading || customOrderItems.every(it => !it.desc.trim())}
-                className="w-full disabled:opacity-40 disabled:cursor-not-allowed font-bold py-3 rounded-xl text-sm flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-[.98]"
-                style={{ background: '#8127cf', color: '#fff' }}
-              >
-                {customOrderLoading ? (
-                  <span className="material-symbols-outlined text-lg animate-spin">progress_activity</span>
-                ) : (
-                  <span className="material-symbols-outlined text-lg">send</span>
-                )}
-                {customOrderLoading ? 'Enviando...' : `Enviar pedido (${customOrderItems.length} chaveiro${customOrderItems.length > 1 ? 's' : ''})`}
-              </button>
             </div>
-          )}
+
+            <button
+              onClick={addCustomToCart}
+              disabled={!customDesc.trim()}
+              className="w-full disabled:opacity-40 disabled:cursor-not-allowed font-bold py-3 rounded-xl text-sm flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-[.98]"
+              style={{ background: '#8127cf', color: '#fff' }}
+            >
+              <span className="material-symbols-outlined text-lg">shopping_cart</span>
+              Adicionar ao carrinho
+            </button>
+          </div>
         </div>
       </div>
     )}
@@ -550,7 +425,7 @@ export default function StorePage() {
             </div>
             <div className="flex gap-2 flex-wrap sm:flex-nowrap sm:shrink-0">
               <button
-                onClick={isCroche ? openCustomOrderModal : () => document.getElementById('colecoes-sidebar')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                onClick={isCroche ? openCustomSheet : () => document.getElementById('colecoes-sidebar')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
                 className="bg-white font-bold text-xs px-4 py-2 rounded-lg cursor-pointer border-none whitespace-nowrap"
                 style={{ color: isCroche ? '#8127cf' : '#3525cd' }}
               >
@@ -735,7 +610,7 @@ export default function StorePage() {
                   <p className="text-xs text-on-surface-variant leading-relaxed">Pokémon, animal ou personagem — feito à mão sob medida. Prazo de 1 a 2 dias por peça, preço combinado antes da produção.</p>
                 </div>
                 <button
-                  onClick={openCustomOrderModal}
+                  onClick={openCustomSheet}
                   className="shrink-0 text-white font-bold text-xs px-4 py-2.5 rounded-lg border-none cursor-pointer hover:opacity-90 active:scale-[.98] transition-all"
                   style={{ background: '#8127cf' }}
                 >
@@ -767,7 +642,7 @@ export default function StorePage() {
                       <ProductCard
                         key={item.id}
                         item={item}
-                        onCustomOrder={item.isCustomOrder ? openCustomOrderModal : undefined}
+                        onCustomOrder={item.isCustomOrder ? openCustomSheet : undefined}
                       />
                     ))}
                   </div>

@@ -1,9 +1,10 @@
 import { create } from 'zustand'
 
 const useCartStore = create((set, get) => ({
-  items: [], // { id, name, imageUrl, unitPrice, quantity, available, saleCategory, itemSubtype }
+  items: [], // { id, name, imageUrl, imagePreview, imageFile, unitPrice, quantity, available, saleCategory, isCustomOrder, desc }
   open: false,
 
+  // Regular items: merge quantity if same id
   add: (product) => {
     set((state) => {
       const existing = state.items.find(i => i.id === product.id)
@@ -13,6 +14,14 @@ const useCartStore = create((set, get) => ({
       }
       return { items: [...state.items, { ...product, quantity: 1 }] }
     })
+  },
+
+  // Custom items: always create a new unique entry (desc/image differ per unit)
+  addCustom: (product) => {
+    const cartId = `custom-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+    set((state) => ({
+      items: [...state.items, { ...product, id: cartId, quantity: 1 }],
+    }))
   },
 
   remove: (id) => set((state) => ({ items: state.items.filter(i => i.id !== id) })),

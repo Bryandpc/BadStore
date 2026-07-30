@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
-import { db } from '../firebase'
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
+import { db, storage } from '../firebase'
 import useCartStore from '../store/useCartStore'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -137,13 +138,28 @@ export default function CheckoutPage() {
         return
       }
 
+      // Upload reference images for custom items before saving
+      const orderItems = await Promise.all(items.map(async (i) => {
+        const base = { id: i.id, name: i.name, quantity: i.quantity, unitPrice: i.unitPrice, saleCategory: i.saleCategory ?? 'tcg' }
+        if (i.desc) base.desc = i.desc
+        if (i.imageUrl) { base.imageUrl = i.imageUrl; return base }
+        if (i.imageFile) {
+          try {
+            const path = `custom-orders/${user.uid}/${Date.now()}-${Math.random().toString(36).slice(2, 5)}`
+            const snap = await uploadBytes(storageRef(storage, path), i.imageFile)
+            base.imageUrl = await getDownloadURL(snap.ref)
+          } catch (_) {}
+        }
+        return base
+      }))
+
       const docRef = await addDoc(collection(db, 'orders'), {
         customerName:     finalName,
         customerContact:  finalContact,
         customerEmail:    user?.email ?? null,
         customerPhotoUrl: finalPhoto,
         uid:  user?.uid ?? null,
-        items: items.map(i => ({ id: i.id, name: i.name, quantity: i.quantity, unitPrice: i.unitPrice })),
+        items: orderItems,
         total,
         status:  'draft',
         origem:  'badstore',
@@ -172,7 +188,7 @@ export default function CheckoutPage() {
           customerName: finalName,
           customerEmail: user?.email ?? null,
           customerContact: finalContact,
-          items: items.map(i => ({ name: i.name, quantity: i.quantity, unitPrice: i.unitPrice })),
+          items: orderItems.map(i => ({ name: i.name, quantity: i.quantity, unitPrice: i.unitPrice, ...(i.desc ? { desc: i.desc } : {}) })),
           total,
         }),
       }).catch(() => {})

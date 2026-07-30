@@ -79,13 +79,21 @@ export default function CartDrawer() {
                         : 'repeating-linear-gradient(135deg,#e2dfff 0px,#e2dfff 8px,#d7d2fb 8px,#d7d2fb 16px)'
                     }}
                   >
-                    {item.imageUrl && (
-                      <img src={item.imageUrl} alt={item.name} className="absolute inset-0 w-full h-full object-contain p-1.5" />
+                    {(item.imagePreview || item.imageUrl) && (
+                      <img src={item.imagePreview || item.imageUrl} alt={item.name} className="absolute inset-0 w-full h-full object-cover" />
+                    )}
+                    {item.isCustomOrder && !(item.imagePreview || item.imageUrl) && (
+                      <span className="material-symbols-outlined text-2xl" style={{ color: '#8127cf' }}>auto_fix_high</span>
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h4 className="text-sm font-bold leading-tight mb-1 truncate">{item.name}</h4>
-                    <p className="text-primary font-price text-lg mb-2">{fmtBRL(item.unitPrice)}</p>
+                    <h4 className="text-sm font-bold leading-tight mb-0.5 truncate">{item.name}</h4>
+                    {item.desc && (
+                      <p className="text-xs text-on-surface-variant italic mb-1 line-clamp-2">"{item.desc}"</p>
+                    )}
+                    <p className="text-primary font-price text-lg mb-2">
+                      {item.unitPrice > 0 ? fmtBRL(item.unitPrice) : 'A combinar'}
+                    </p>
                     <div className="flex items-center gap-3">
                       <button
                         onClick={() => item.quantity > 1 ? setQty(item.id, item.quantity - 1) : remove(item.id)}
@@ -94,7 +102,7 @@ export default function CartDrawer() {
                       <span className="text-sm font-bold w-5 text-center">{item.quantity}</span>
                       <button
                         onClick={() => setQty(item.id, item.quantity + 1)}
-                        disabled={item.quantity >= item.available}
+                        disabled={item.isCustomOrder || item.quantity >= item.available}
                         className="w-9 h-9 border border-outline-variant rounded flex items-center justify-center text-sm hover:border-primary hover:text-primary active:scale-90 transition-all disabled:opacity-30"
                       >+</button>
                       <button
