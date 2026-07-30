@@ -349,26 +349,24 @@ export default function MyOrdersPage() {
   return (
     <div className="min-h-screen bg-background text-on-background">
       {/* Header */}
-      <header className="sticky top-0 z-30 border-b border-outline-variant bg-background/95 backdrop-blur-md shadow-md">
-        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-3">
+      <header className="sticky top-0 z-30 border-b border-outline-variant bg-background/95 backdrop-blur-md">
+        <div className="max-w-2xl mx-auto px-4 py-2.5 flex items-center gap-3">
           <button
             onClick={() => navigate('/')}
             className="p-1.5 rounded-lg text-on-surface-variant hover:text-primary transition-colors"
           >
             <span className="material-symbols-outlined">arrow_back</span>
           </button>
-          <img src="/logo-completa.jpg" alt="BAD TCG" className="h-8 object-contain rounded" />
-          <h1 className="text-base font-display font-bold text-on-surface flex-1">Meus Pedidos</h1>
-          {/* Avatar do usuário */}
+          <a href="/" className="flex items-center gap-2 shrink-0 rounded-[10px] pl-1.5 pr-3 py-1.5" style={{ background: '#191c1e' }}>
+            <img src="/logo-gengar.png" alt="Gengar" className="w-6 h-6 object-contain" />
+            <img src="/logo-nome.png" alt="BAD TCG" className="h-3.5 object-contain" />
+          </a>
+          <h1 className="text-sm font-display font-bold text-on-surface flex-1">Meus Pedidos</h1>
           <button onClick={() => navigate('/perfil')} className="shrink-0">
             {(profile?.photoUrl || user?.photoURL) ? (
-              <img
-                src={profile?.photoUrl || user?.photoURL}
-                alt=""
-                className="w-8 h-8 rounded-full object-cover border-2 border-primary/30"
-              />
+              <img src={profile?.photoUrl || user?.photoURL} alt="" className="w-8 h-8 rounded-full object-cover border-2 border-outline-variant" />
             ) : (
-              <div className="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center text-xs font-black text-on-primary">
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black text-white" style={{ background: '#3525cd' }}>
                 {(profile?.name || user?.displayName || user?.email || '?').charAt(0).toUpperCase()}
               </div>
             )}
@@ -446,19 +444,35 @@ export default function MyOrdersPage() {
                   {/* Itens */}
                   <div className="border-t border-outline-variant/30 divide-y divide-outline-variant/20">
                     {order.items?.map((item, i) => (
-                      <div key={i} className="flex items-center justify-between px-4 py-2.5 gap-3">
-                        <span className="text-sm text-on-surface-variant truncate">
-                          {item.quantity}× {item.name}
-                        </span>
-                        <span className="text-sm font-semibold text-on-surface shrink-0">
-                          {fmtBRL((item.unitPrice ?? 0) * item.quantity)}
-                        </span>
+                      <div key={i} className="px-4 py-2.5 gap-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            {item.imageUrl && (
+                              <a href={item.imageUrl} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                                <img src={item.imageUrl} alt="" className="w-10 h-10 rounded-lg object-cover border border-outline-variant/40" />
+                              </a>
+                            )}
+                            <span className="text-sm text-on-surface-variant truncate">
+                              {item.quantity}× {item.name}
+                            </span>
+                          </div>
+                          <span className="text-sm font-semibold text-on-surface shrink-0">
+                            {item.unitPrice > 0 ? fmtBRL((item.unitPrice ?? 0) * item.quantity) : '—'}
+                          </span>
+                        </div>
+                        {item.desc && (
+                          <p className="text-xs text-on-surface-variant/70 mt-1.5 ml-1 italic leading-relaxed">
+                            "{item.desc}"
+                          </p>
+                        )}
                       </div>
                     ))}
-                    <div className="flex items-center justify-between px-4 py-2.5 bg-surface-container">
-                      <span className="text-xs font-bold text-primary uppercase tracking-wider">Total</span>
-                      <span className="text-lg font-price font-black text-on-surface">{fmtBRL(order.total)}</span>
-                    </div>
+                    {order.total > 0 && (
+                      <div className="flex items-center justify-between px-4 py-2.5 bg-surface-container">
+                        <span className="text-xs font-bold text-primary uppercase tracking-wider">Total</span>
+                        <span className="text-lg font-price font-black text-on-surface">{fmtBRL(order.total)}</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Timeline */}

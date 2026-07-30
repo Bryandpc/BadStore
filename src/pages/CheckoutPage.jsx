@@ -242,17 +242,19 @@ export default function CheckoutPage() {
 
   return (
     <div className="min-h-screen bg-background text-on-background">
-      <header className="sticky top-0 z-30 border-b border-outline-variant bg-background/95 backdrop-blur-md shadow-md">
-        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-3">
+      <header className="sticky top-0 z-30 border-b border-outline-variant bg-background/95 backdrop-blur-md">
+        <div className="max-w-2xl mx-auto px-4 py-2.5 flex items-center gap-3">
           <button
             onClick={() => navigate('/')}
             className="p-1.5 rounded-lg text-on-surface-variant hover:text-primary transition-colors"
           >
             <span className="material-symbols-outlined">arrow_back</span>
           </button>
-          <img src="/logo-gengar.png" alt="logo" className="w-9 h-9 object-contain" />
-          <img src="/logo-nome.png" alt="BAD TCG" className="h-7 object-contain" />
-          <h1 className="text-base font-display font-bold text-on-surface">Finalizar Pedido</h1>
+          <a href="/" className="flex items-center gap-2 shrink-0 rounded-[10px] pl-1.5 pr-3 py-1.5" style={{ background: '#191c1e' }}>
+            <img src="/logo-gengar.png" alt="Gengar" className="w-6 h-6 object-contain" />
+            <img src="/logo-nome.png" alt="BAD TCG" className="h-3.5 object-contain" />
+          </a>
+          <h1 className="text-sm font-display font-bold text-on-surface">Finalizar Pedido</h1>
         </div>
       </header>
 
