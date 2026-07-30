@@ -533,20 +533,30 @@ function ProfileTab({ user, profile, saveProfile, uploadProfilePhoto }) {
 
 // ── Main Page ────────────────────────────────────────────────────────────────
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 640)
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 640)
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [])
+  return isMobile
+}
+
 export default function MyOrdersPage({ defaultTab }) {
   const { user, profile, saveProfile, uploadProfilePhoto } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
+  const isMobile = useIsMobile()
 
-  // Determine initial tab from prop or location pathname
   const qTab = new URLSearchParams(location.search).get('tab')
   const initTab = defaultTab ?? qTab ?? (location.pathname === '/perfil' ? 'perfil' : 'pedidos')
   const [activeTab, setActiveTab] = useState(initTab)
   const [orders, setOrders] = useState([])
   const [loadingOrders, setLoadingOrders] = useState(true)
   const [selectedId, setSelectedId] = useState(null)
-  // Mobile: whether we're showing detail panel
-  const [mobileDetail, setMobileDetail] = useState(false)
+  // Mobile: null = list view, string = detail view for that order id
+  const [mobileView, setMobileView] = useState('list') // 'list' | 'detail'
 
   useEffect(() => {
     if (user === null) {
@@ -565,7 +575,7 @@ export default function MyOrdersPage({ defaultTab }) {
       })
       setOrders(docs)
       setLoadingOrders(false)
-      // Auto-select first non-completed order
+      // Desktop: auto-select first active order
       if (!selectedId && docs.length > 0) {
         const first = docs.find(o => !['entregue', 'cancelado'].includes(o.status)) ?? docs[0]
         setSelectedId(first.id)
@@ -589,159 +599,304 @@ export default function MyOrdersPage({ defaultTab }) {
     { key: 'pedidos',  label: 'Meus Pedidos',  icon: 'receipt_long' },
   ]
 
+  // ── Mobile order list cards ──
+  function MobileOrderList() {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {orders.map(o => {
+          const m = STATUS_META[o.status] ?? STATUS_META.draft
+          const unseenReply = hasUnseenReply(o)
+          return (
+            <button
+              key={o.id}
+              onClick={() => { setSelectedId(o.id); setMobileView('detail') }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 12,
+                background: '#fff', border: `1px solid ${unseenReply ? '#3525cd' : '#c7c4d8'}`,
+                borderRadius: 12, padding: '14px 16px', cursor: 'pointer',
+                color: '#191c1e', fontFamily: "'Inter',sans-serif", textAlign: 'left',
+                width: '100%', boxSizing: 'border-box', position: 'relative',
+              }}
+            >
+              {/* Status icon circle */}
+              <div style={{ width: 40, height: 40, borderRadius: 99, background: m.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 18, color: m.fg }}>{m.icon}</span>
+              </div>
+
+              {/* Info */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, fontWeight: 700, color: '#191c1e' }}>
+                    #{o.id.slice(-6).toUpperCase()}
+                  </span>
+                  <span style={{ background: m.bg, color: m.fg, fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 99 }}>
+                    {m.label}
+                  </span>
+                  {unseenReply && (
+                    <span style={{ width: 6, height: 6, borderRadius: 99, background: '#3525cd', flexShrink: 0 }} />
+                  )}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 11, color: '#777587' }}>{fmtDate(o.createdAt)}</span>
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, fontWeight: 800, color: '#191c1e' }}>
+                    {o.total > 0 ? fmtBRL(o.total) : '—'}
+                  </span>
+                </div>
+                {/* Item summary */}
+                <p style={{ fontSize: 11, color: '#9a97ab', margin: '2px 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {o.items?.map(i => `${i.quantity}× ${i.name}`).join(', ')}
+                </p>
+              </div>
+
+              <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#c7c4d8', flexShrink: 0 }}>chevron_right</span>
+            </button>
+          )
+        })}
+      </div>
+    )
+  }
+
+  // ── Mobile order detail ──
+  function MobileOrderDetail() {
+    if (!selectedOrder) return null
+    const m = STATUS_META[selectedOrder.status] ?? STATUS_META.draft
+    return (
+      <div>
+        {/* Back header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+          <button
+            onClick={() => setMobileView('list')}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#464555', padding: 0, display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700 }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>arrow_back</span>
+            Pedidos
+          </button>
+          <span style={{ color: '#c7c4d8' }}>·</span>
+          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, fontWeight: 700, color: '#777587' }}>
+            #{selectedOrder.id.slice(-6).toUpperCase()}
+          </span>
+        </div>
+
+        {/* Status pill */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: m.bg, borderRadius: 10, padding: '12px 14px', marginBottom: 20 }}>
+          <span className="material-symbols-outlined" style={{ fontSize: 22, color: m.fg }}>{m.icon}</span>
+          <div>
+            <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 15, fontWeight: 800, color: m.fg, margin: 0 }}>{m.label}</p>
+            <p style={{ fontSize: 11, color: m.fg, opacity: 0.75, margin: 0 }}>{fmtDate(selectedOrder.createdAt)}</p>
+          </div>
+          {selectedOrder.total > 0 && (
+            <span style={{ marginLeft: 'auto', fontFamily: "'JetBrains Mono',monospace", fontSize: 16, fontWeight: 800, color: '#191c1e' }}>
+              {fmtBRL(selectedOrder.total)}
+            </span>
+          )}
+        </div>
+
+        {/* Timeline */}
+        <OrderTimeline order={selectedOrder} />
+
+        {/* Pix */}
+        {selectedOrder.status === 'confirmado' && <ProofField order={selectedOrder} />}
+
+        {/* Items */}
+        <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', color: '#777587', margin: '0 0 10px' }}>Itens</p>
+        <div style={{ border: '1px solid #eceef0', borderRadius: 10, overflow: 'hidden', marginBottom: 16 }}>
+          {selectedOrder.items?.map((item, i) => (
+            <div key={i} style={{ borderBottom: i < selectedOrder.items.length - 1 ? '1px solid #eceef0' : 'none' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                  {item.imageUrl && (
+                    <a href={item.imageUrl} target="_blank" rel="noopener noreferrer">
+                      <img src={item.imageUrl} alt="" style={{ width: 36, height: 36, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }} />
+                    </a>
+                  )}
+                  <span style={{ fontSize: 13, color: '#464555' }}>{item.quantity}× {item.name}</span>
+                </div>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#191c1e', flexShrink: 0 }}>
+                  {item.unitPrice > 0 ? fmtBRL((item.unitPrice ?? 0) * item.quantity) : '—'}
+                </span>
+              </div>
+              {item.desc && (
+                <p style={{ fontSize: 11, color: '#777587', margin: '-4px 14px 8px', fontStyle: 'italic' }}>"{item.desc}"</p>
+              )}
+            </div>
+          ))}
+          {selectedOrder.total > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: '#f2f4f6' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#3525cd' }}>Total</span>
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 16, fontWeight: 800 }}>{fmtBRL(selectedOrder.total)}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Note */}
+        <NoteField order={selectedOrder} />
+      </div>
+    )
+  }
+
   return (
     <div style={{ minHeight: '100vh', background: '#f4f6f9', color: '#191c1e' }}>
       {/* Header */}
       <header style={{ borderBottom: '1px solid #c7c4d8', background: '#f4f6f9', position: 'sticky', top: 0, zIndex: 30 }}>
         <div style={{ maxWidth: 1000, margin: '0 auto', padding: '14px 24px', display: 'flex', alignItems: 'center', gap: 12 }}>
           <button
-            onClick={() => navigate('/')}
+            onClick={() => {
+              if (isMobile && activeTab === 'pedidos' && mobileView === 'detail') {
+                setMobileView('list')
+              } else {
+                navigate('/')
+              }
+            }}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#464555', padding: 4, display: 'flex' }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: 20 }}>arrow_back</span>
           </button>
           <h1 style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 15, fontWeight: 800, color: '#191c1e', margin: 0 }}>
-            Minha Conta
+            {isMobile && activeTab === 'pedidos' && mobileView === 'detail' && selectedOrder
+              ? `Pedido #${selectedOrder.id.slice(-6).toUpperCase()}`
+              : 'Minha Conta'}
           </h1>
         </div>
       </header>
 
-      {/* Body */}
-      <div className="account-body" style={{ maxWidth: 1000, margin: '0 auto', padding: '28px 24px 64px', display: 'flex', gap: 40, alignItems: 'flex-start' }}>
+      {/* Mobile layout */}
+      {isMobile ? (
+        <div style={{ padding: '16px 16px 80px' }}>
+          {/* Tab bar */}
+          <div style={{ display: 'flex', gap: 4, marginBottom: 20 }}>
+            {NAV.map(n => {
+              const active = activeTab === n.key
+              return (
+                <button
+                  key={n.key}
+                  onClick={() => { setActiveTab(n.key); setMobileView('list') }}
+                  style={{
+                    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    background: active ? '#e2dfff' : '#fff',
+                    color: active ? '#3323cc' : '#464555',
+                    border: `1px solid ${active ? '#3525cd' : '#c7c4d8'}`,
+                    borderRadius: 8, padding: '9px 12px', fontSize: 12, fontWeight: 700,
+                    cursor: 'pointer', fontFamily: "'Inter',sans-serif",
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>{n.icon}</span>
+                  {n.label}
+                </button>
+              )
+            })}
+          </div>
 
-        {/* Sidebar nav */}
-        <nav className="account-nav" style={{ width: 170, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {NAV.map(n => {
-            const active = activeTab === n.key
-            return (
-              <button
-                key={n.key}
-                onClick={() => { setActiveTab(n.key); setMobileDetail(false) }}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 8,
-                  background: active ? '#e2dfff' : 'transparent',
-                  color: active ? '#3323cc' : '#464555',
-                  border: 'none', borderRadius: 8, padding: '9px 12px',
-                  fontSize: 12, fontWeight: 700, cursor: 'pointer', textAlign: 'left',
-                  fontFamily: "'Inter',sans-serif",
-                }}
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>{n.icon}</span>
-                {n.label}
-              </button>
-            )
-          })}
-        </nav>
-
-        {/* Content */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-
-          {/* ── PROFILE TAB ── */}
           {activeTab === 'perfil' && (
-            <ProfileTab
-              user={user}
-              profile={profile}
-              saveProfile={saveProfile}
-              uploadProfilePhoto={uploadProfilePhoto}
-            />
+            <ProfileTab user={user} profile={profile} saveProfile={saveProfile} uploadProfilePhoto={uploadProfilePhoto} />
           )}
 
-          {/* ── ORDERS TAB ── */}
           {activeTab === 'pedidos' && (
             orders.length === 0 ? (
-              <div style={{ textAlign: 'center', paddingTop: 80 }}>
+              <div style={{ textAlign: 'center', paddingTop: 60 }}>
                 <span className="material-symbols-outlined" style={{ fontSize: 48, color: '#c7c4d8', display: 'block', marginBottom: 12 }}>receipt_long</span>
                 <p style={{ fontSize: 13, color: '#777587', marginBottom: 16 }}>Nenhum pedido ainda</p>
-                <button
-                  onClick={() => navigate('/')}
-                  style={{ background: '#3525cd', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 20px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
-                >
+                <button onClick={() => navigate('/')} style={{ background: '#3525cd', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 20px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
                   Ver produtos
                 </button>
               </div>
+            ) : mobileView === 'list' ? (
+              <MobileOrderList />
             ) : (
-              <div className="order-two-panel" style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
-
-                {/* Order list — hidden on mobile when detail is open */}
-                <div
-                  className={`order-list-panel${mobileDetail ? ' mobile-hidden' : ''}`}
-                  style={{ width: 230, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 6 }}
-                >
-                  {orders.map(o => {
-                    const m = STATUS_META[o.status] ?? STATUS_META.draft
-                    const isSelected = o.id === selectedId
-                    const unseenReply = hasUnseenReply(o)
-                    return (
-                      <button
-                        key={o.id}
-                        onClick={() => { setSelectedId(o.id); setMobileDetail(true) }}
-                        style={{
-                          display: 'flex', flexDirection: 'column', gap: 3, textAlign: 'left',
-                          background: isSelected ? '#e2dfff' : '#ffffff',
-                          border: `1px solid ${isSelected ? '#3525cd' : unseenReply ? '#3525cd' : '#c7c4d8'}`,
-                          borderRadius: 10, padding: '10px 12px', cursor: 'pointer',
-                          color: '#191c1e', fontFamily: "'Inter',sans-serif",
-                          position: 'relative',
-                        }}
-                      >
-                        <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700 }}>
-                            #{o.id.slice(-6).toUpperCase()}
-                          </span>
-                          <span style={{ background: m.bg, color: m.fg, fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 99 }}>
-                            {m.label}
-                          </span>
-                        </span>
-                        <span style={{ fontSize: 11, color: '#777587' }}>{fmtDate(o.createdAt)}</span>
-                        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, fontWeight: 800 }}>
-                          {o.total > 0 ? fmtBRL(o.total) : '—'}
-                        </span>
-                        {unseenReply && !isSelected && (
-                          <span style={{
-                            position: 'absolute', top: 8, right: 8,
-                            width: 7, height: 7, borderRadius: 99,
-                            background: '#3525cd',
-                          }} />
-                        )}
-                      </button>
-                    )
-                  })}
-                </div>
-
-                {/* Order detail */}
-                {selectedOrder && (
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    {/* Mobile back button */}
-                    {mobileDetail && (
-                      <button
-                        onClick={() => setMobileDetail(false)}
-                        className="order-back-mobile"
-                        style={{ display: 'none', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: '#464555', fontSize: 12, fontWeight: 700, marginBottom: 16, padding: 0 }}
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_back</span>
-                        Voltar aos pedidos
-                      </button>
-                    )}
-                    <OrderDetail order={selectedOrder} />
-                  </div>
-                )}
-              </div>
+              <MobileOrderDetail />
             )
           )}
         </div>
-      </div>
+      ) : (
+        /* Desktop layout */
+        <div style={{ maxWidth: 1000, margin: '0 auto', padding: '28px 24px 64px', display: 'flex', gap: 40, alignItems: 'flex-start' }}>
 
-      <style>{`
-        @media (max-width: 640px) {
-          .account-body { flex-direction: column !important; gap: 0 !important; padding: 16px 16px 64px !important; }
-          .account-nav { width: 100% !important; flex-direction: row !important; gap: 4px !important; margin-bottom: 20px; }
-          .account-nav button { flex: 1; justify-content: center; }
-          .order-list-panel { width: 100% !important; }
-          .order-list-panel.mobile-hidden { display: none !important; }
-          .order-back-mobile { display: flex !important; }
-          .order-two-panel { flex-direction: column !important; }
-        }
-      `}</style>
+          {/* Sidebar nav */}
+          <nav style={{ width: 170, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {NAV.map(n => {
+              const active = activeTab === n.key
+              return (
+                <button
+                  key={n.key}
+                  onClick={() => setActiveTab(n.key)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    background: active ? '#e2dfff' : 'transparent',
+                    color: active ? '#3323cc' : '#464555',
+                    border: 'none', borderRadius: 8, padding: '9px 12px',
+                    fontSize: 12, fontWeight: 700, cursor: 'pointer', textAlign: 'left',
+                    fontFamily: "'Inter',sans-serif",
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>{n.icon}</span>
+                  {n.label}
+                </button>
+              )
+            })}
+          </nav>
+
+          {/* Content */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {activeTab === 'perfil' && (
+              <ProfileTab user={user} profile={profile} saveProfile={saveProfile} uploadProfilePhoto={uploadProfilePhoto} />
+            )}
+
+            {activeTab === 'pedidos' && (
+              orders.length === 0 ? (
+                <div style={{ textAlign: 'center', paddingTop: 80 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 48, color: '#c7c4d8', display: 'block', marginBottom: 12 }}>receipt_long</span>
+                  <p style={{ fontSize: 13, color: '#777587', marginBottom: 16 }}>Nenhum pedido ainda</p>
+                  <button onClick={() => navigate('/')} style={{ background: '#3525cd', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 20px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                    Ver produtos
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
+                  {/* Order list */}
+                  <div style={{ width: 230, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {orders.map(o => {
+                      const m = STATUS_META[o.status] ?? STATUS_META.draft
+                      const isSelected = o.id === selectedId
+                      const unseenReply = hasUnseenReply(o)
+                      return (
+                        <button
+                          key={o.id}
+                          onClick={() => setSelectedId(o.id)}
+                          style={{
+                            display: 'flex', flexDirection: 'column', gap: 3, textAlign: 'left',
+                            background: isSelected ? '#e2dfff' : '#ffffff',
+                            border: `1px solid ${isSelected ? '#3525cd' : unseenReply ? '#3525cd' : '#c7c4d8'}`,
+                            borderRadius: 10, padding: '10px 12px', cursor: 'pointer',
+                            color: '#191c1e', fontFamily: "'Inter',sans-serif", position: 'relative',
+                          }}
+                        >
+                          <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700 }}>
+                              #{o.id.slice(-6).toUpperCase()}
+                            </span>
+                            <span style={{ background: m.bg, color: m.fg, fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 99 }}>
+                              {m.label}
+                            </span>
+                          </span>
+                          <span style={{ fontSize: 11, color: '#777587' }}>{fmtDate(o.createdAt)}</span>
+                          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, fontWeight: 800 }}>
+                            {o.total > 0 ? fmtBRL(o.total) : '—'}
+                          </span>
+                          {unseenReply && !isSelected && (
+                            <span style={{ position: 'absolute', top: 8, right: 8, width: 7, height: 7, borderRadius: 99, background: '#3525cd' }} />
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {/* Order detail */}
+                  {selectedOrder && <OrderDetail order={selectedOrder} />}
+                </div>
+              )
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
