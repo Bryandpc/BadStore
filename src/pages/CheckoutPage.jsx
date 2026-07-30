@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { collection, addDoc, serverTimestamp, getDoc, doc } from 'firebase/firestore'
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { db, storage } from '../firebase'
+import { db } from '../firebase'
 import useCartStore from '../store/useCartStore'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -155,10 +154,16 @@ export default function CheckoutPage() {
         if (i.imageUrl) { base.imageUrl = i.imageUrl; return base }
         if (i.imageFile) {
           try {
-            const path = `custom-orders/${user.uid}/${Date.now()}-${Math.random().toString(36).slice(2, 5)}`
-            const snap = await uploadBytes(storageRef(storage, path), i.imageFile)
-            base.imageUrl = await getDownloadURL(snap.ref)
-          } catch (_) {}
+            const form = new FormData()
+            form.append('file', i.imageFile)
+            const res = await fetch('/api/upload-reference', { method: 'POST', body: form })
+            if (res.ok) {
+              const { url } = await res.json()
+              if (url) base.imageUrl = url
+            }
+          } catch (_) {
+            // Upload falhou — pedido prossegue sem imagem
+          }
         }
         return base
       }))
