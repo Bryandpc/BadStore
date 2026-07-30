@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
-import { collection, onSnapshot, query, addDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, onSnapshot, query, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore'
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { db, storage } from '../firebase'
 import ProductCard from '../components/ProductCard'
@@ -54,9 +54,13 @@ export default function StorePage() {
   const [lightbox, setLightbox] = useState(null) // { src, alt }
   const [banners, setBanners] = useState({ tcg: {}, croche: {} })
   useEffect(() => {
-    fetch('http://localhost:3001/api/store-banners')
-      .then(r => r.json())
-      .then(data => setBanners({ tcg: data.tcg || {}, croche: data.croche || {} }))
+    getDoc(doc(db, 'config', 'store_banners'))
+      .then(snap => {
+        if (snap.exists()) {
+          const d = snap.data()
+          setBanners({ tcg: d.tcg || {}, croche: d.croche || {} })
+        }
+      })
       .catch(() => {})
   }, [])
 
@@ -531,23 +535,23 @@ export default function StorePage() {
 
         <div className="relative max-w-container mx-auto px-4 md:px-6 py-6">
           {/* Title + actions */}
-          <div className="flex items-start justify-between gap-5 flex-wrap mb-5">
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full mb-2.5" style={{ background: 'rgba(0,0,0,0.3)', color: '#fff', backdropFilter: 'blur(4px)' }}>
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-5 mb-4">
+            <div className="min-w-0">
+              <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full mb-2" style={{ background: 'rgba(0,0,0,0.3)', color: '#fff', backdropFilter: 'blur(4px)' }}>
                 <span className="w-1.5 h-1.5 rounded-full bg-white inline-block" />
                 {heroTag}
               </span>
-              <h1 className="font-display font-extrabold text-2xl text-white leading-tight mb-1.5" style={{ maxWidth: 480, textShadow: '0 2px 16px rgba(0,0,0,0.8), 0 1px 4px rgba(0,0,0,0.9)' }}>
+              <h1 className="font-display font-extrabold text-xl sm:text-2xl text-white leading-tight mb-1" style={{ textShadow: '0 2px 16px rgba(0,0,0,0.8), 0 1px 4px rgba(0,0,0,0.9)' }}>
                 {heroTitle}
               </h1>
-              <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.95)', maxWidth: 420, textShadow: '0 1px 8px rgba(0,0,0,0.9)' }}>
+              <p className="text-xs sm:text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.9)', textShadow: '0 1px 8px rgba(0,0,0,0.9)' }}>
                 {heroSubtitle}
               </p>
             </div>
-            <div className="flex gap-2.5 shrink-0 flex-wrap">
+            <div className="flex gap-2 flex-wrap sm:flex-nowrap sm:shrink-0">
               <button
                 onClick={isCroche ? openCustomOrderModal : () => document.getElementById('colecoes-sidebar')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                className="bg-white font-bold text-xs px-4 py-2.5 rounded-lg cursor-pointer border-none"
+                className="bg-white font-bold text-xs px-4 py-2 rounded-lg cursor-pointer border-none whitespace-nowrap"
                 style={{ color: isCroche ? '#8127cf' : '#3525cd' }}
               >
                 {isCroche ? 'Encomendar peça' : 'Ver coleções'}
@@ -556,7 +560,7 @@ export default function StorePage() {
                 href={WA_GROUP}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-bold text-xs px-4 py-2.5 rounded-lg whitespace-nowrap no-underline"
+                className="font-bold text-xs px-4 py-2 rounded-lg whitespace-nowrap no-underline"
                 style={{ background: 'rgba(255,255,255,0.12)', color: '#fff', border: '1px solid rgba(255,255,255,0.4)' }}
               >
                 Grupo do WhatsApp
@@ -567,17 +571,17 @@ export default function StorePage() {
           {/* Featured items */}
           {heroFeatured.length > 0 && (
             <>
-              <p className="text-[10px] font-bold uppercase tracking-wider mb-2.5" style={{ color: 'rgba(255,255,255,0.75)' }}>
+              <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: 'rgba(255,255,255,0.75)' }}>
                 Destaques da semana
               </p>
-              <div className="flex gap-3 flex-wrap">
+              <div className="flex gap-3 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
                 {heroFeatured.map(item => {
                   const stripeA = item.saleCategory === 'croche' ? '#f0dbff' : '#e2dfff'
                   const stripeB = item.saleCategory === 'croche' ? '#e6cdf7' : '#d7d2fb'
                   const accentF = item.saleCategory === 'croche' ? '#f0dbff' : '#e2dfff'
                   const accentFT = item.saleCategory === 'croche' ? '#6900b3' : '#3323cc'
                   return (
-                    <div key={item.id} style={{ flex: '1 1 150px', maxWidth: 220, background: '#fff', borderRadius: 10, overflow: 'hidden' }}>
+                    <div key={item.id} style={{ flexShrink: 0, width: 160, background: '#fff', borderRadius: 10, overflow: 'hidden' }}>
                       <div style={{ height: 120, position: 'relative', backgroundImage: `repeating-linear-gradient(135deg,${stripeA} 0px,${stripeA} 8px,${stripeB} 8px,${stripeB} 16px)` }}>
                         {item.imageUrl && (
                           <img
