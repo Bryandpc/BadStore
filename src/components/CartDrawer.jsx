@@ -12,6 +12,8 @@ export default function CartDrawer() {
   const setOpen = useCartStore(s => s.setOpen)
   const remove = useCartStore(s => s.remove)
   const setQty = useCartStore(s => s.setQty)
+  const conflict = useCartStore(s => s.conflict)
+  const clearConflict = useCartStore(s => s.clearConflict)
   const navigate = useNavigate()
 
   // controla montagem pra não renderizar no SSR/initial mas animar na saída
@@ -48,6 +50,14 @@ export default function CartDrawer() {
           <h2 className="text-xl font-display font-bold flex items-center gap-2">
             <span className="material-symbols-outlined text-primary">shopping_cart</span>
             Meu Carrinho
+            {items.length > 0 && (
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full"
+                style={items[0].saleCategory === 'croche'
+                  ? { background: '#f0dbff', color: '#6900b3' }
+                  : { background: '#e2dfff', color: '#3323cc' }}>
+                {items[0].saleCategory === 'croche' ? '🧶 Crochê' : '⚡ TCG'}
+              </span>
+            )}
           </h2>
           <button
             onClick={() => setOpen(false)}
@@ -56,6 +66,22 @@ export default function CartDrawer() {
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
+
+        {conflict && (
+          <div className="mx-4 mt-3 px-3 py-2.5 rounded-lg flex items-start gap-2 text-xs"
+            style={{ background: '#fef3c7', border: '1px solid #fcd34d' }}>
+            <span className="text-amber-500 flex-shrink-0 mt-0.5">⚠️</span>
+            <div className="flex-1">
+              <p className="font-bold text-amber-800">
+                Carrinho é exclusivo para {conflict.currentCat === 'croche' ? 'Crochê 🧶' : 'TCG ⚡'}
+              </p>
+              <p className="text-amber-700 mt-0.5">
+                Finalize ou esvazie o carrinho antes de adicionar {conflict.triedCat === 'croche' ? 'itens de Crochê' : 'cards TCG'}.
+              </p>
+            </div>
+            <button onClick={clearConflict} className="text-amber-500 hover:text-amber-700 flex-shrink-0">✕</button>
+          </div>
+        )}
 
         {items.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center text-on-surface-variant gap-4">
