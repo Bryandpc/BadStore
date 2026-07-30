@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, addDoc, serverTimestamp, getDoc, doc } from 'firebase/firestore'
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { db, storage } from '../firebase'
 import useCartStore from '../store/useCartStore'
@@ -60,6 +60,7 @@ export default function CheckoutPage() {
   const [successOrderId, setSuccessOrderId] = useState(null)
   const [deliveryModal, setDeliveryModal] = useState(false)
   const [dontShowAgain, setDontShowAgain] = useState(false)
+  const [crocheQueue, setCrocheQueue] = useState(null) // { crocheOrderCount, crocheItemCount }
 
   // O que já existe no perfil
   const hasName  = !profileLoading && !!profile?.name
@@ -73,6 +74,15 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (user === null) navigate('/login?next=/checkout', { replace: true })
   }, [user, navigate])
+
+  const hasCroche = items.some(i => i.saleCategory === 'croche')
+
+  useEffect(() => {
+    if (!hasCroche) return
+    getDoc(doc(db, 'config', 'production_queue'))
+      .then(snap => { if (snap.exists()) setCrocheQueue(snap.data()) })
+      .catch(() => {})
+  }, [hasCroche])
 
   // Valida contato em tempo real após primeiro blur
   useEffect(() => {
@@ -275,14 +285,26 @@ export default function CheckoutPage() {
       </header>
 
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-5">
-        {items.some(i => i.saleCategory === 'croche') && (
-          <div className="flex gap-3 bg-pink-500/10 border border-pink-500/30 rounded-xl px-4 py-3">
-            <span className="material-symbols-outlined text-pink-300 text-xl shrink-0">schedule</span>
-            <div>
-              <p className="text-sm font-bold text-pink-300">Itens sob encomenda</p>
-              <p className="text-xs text-on-surface-variant mt-0.5 leading-relaxed">
-                Seu pedido inclui peças de crochê produzidas após confirmação. Prazo de <strong className="text-on-surface">1 a 2 dias por peça</strong>, em ordem de chegada dos pedidos. Assim que confirmarmos, entramos em contato!
-              </p>
+        {hasCroche && (
+          <div className="flex gap-3 rounded-xl px-4 py-3.5" style={{ background: '#fdf4ff', border: '1px solid #e9d5ff' }}>
+            <span className="material-symbols-outlined text-xl shrink-0" style={{ color: '#8127cf' }}>schedule</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold" style={{ color: '#6900b3' }}>Itens sob encomenda</p>
+              {crocheQueue ? (
+                <p className="text-xs text-on-surface-variant mt-1 leading-relaxed">
+                  Seu pedido inclui peças de crochê feitas após confirmação.
+                  {crocheQueue.crocheItemCount > 0 ? (
+                    <> Há atualmente <strong className="text-on-surface">{crocheQueue.crocheItemCount} {crocheQueue.crocheItemCount === 1 ? 'peça' : 'peças'}</strong> na fila — você entrará na <strong className="text-on-surface">posição {crocheQueue.crocheItemCount + 1}</strong>. Prazo estimado de <strong className="text-on-surface">{crocheQueue.crocheItemCount + 1} a {crocheQueue.crocheItemCount + 2} dias</strong> após confirmação.</>
+                  ) : (
+                    <> A fila está <strong className="text-on-surface">vazia</strong> — seu pedido será o próximo! Prazo estimado de <strong className="text-on-surface">1 a 2 dias</strong> após confirmação.</>
+                  )}
+                  {' '}Assim que confirmarmos, entramos em contato!
+                </p>
+              ) : (
+                <p className="text-xs text-on-surface-variant mt-1 leading-relaxed">
+                  Seu pedido inclui peças de crochê produzidas após confirmação. Prazo de <strong className="text-on-surface">1 a 2 dias por peça</strong>, em ordem de chegada dos pedidos. Assim que confirmarmos, entramos em contato!
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -293,20 +315,39 @@ export default function CheckoutPage() {
             <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Resumo do pedido</p>
           </div>
           <div className="divide-y divide-outline-variant/30">
-            {items.map(item => (
-              <div key={item.id} className="flex items-center gap-3 px-5 py-3">
-                {item.imageUrl ? (
-                  <img src={item.imageUrl} alt={item.name} className="w-10 h-10 rounded-lg object-contain bg-surface-container flex-shrink-0" />
-                ) : (
-                  <div className="w-10 h-10 rounded-lg bg-surface-container flex-shrink-0" />
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-on-surface truncate">{item.name}</p>
-                  <p className="text-xs text-on-surface-variant">{item.quantity}x {fmtBRL(item.unitPrice)}</p>
+            {items.map(item => {
+              const thumb = item.imagePreview || item.imageUrl
+              const isFree = item.unitPrice === 0
+              return (
+                <div key={item.id} className="px-5 py-3">
+                  <div className="flex items-start gap-3">
+                    {thumb ? (
+                      <img src={thumb} alt={item.name} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                    ) : item.isCustomOrder ? (
+                      <div className="w-10 h-10 rounded-lg flex-shrink-0 flex items-center justify-center" style={{ background: '#f0dbff' }}>
+                        <span className="material-symbols-outlined text-base" style={{ color: '#8127cf' }}>auto_fix_high</span>
+                      </div>
+                    ) : (
+                      <div className="w-10 h-10 rounded-lg bg-surface-container flex-shrink-0" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-on-surface">{item.name}</p>
+                      <p className="text-xs text-on-surface-variant">
+                        {item.quantity}x {isFree ? 'A combinar' : fmtBRL(item.unitPrice)}
+                      </p>
+                    </div>
+                    <p className="text-sm font-bold text-on-surface flex-shrink-0">
+                      {isFree ? '—' : fmtBRL(item.unitPrice * item.quantity)}
+                    </p>
+                  </div>
+                  {item.desc && (
+                    <p className="text-xs text-on-surface-variant italic mt-1.5 ml-13 leading-relaxed pl-[52px]">
+                      "{item.desc}"
+                    </p>
+                  )}
                 </div>
-                <p className="text-sm font-bold text-on-surface flex-shrink-0">{fmtBRL(item.unitPrice * item.quantity)}</p>
-              </div>
-            ))}
+              )
+            })}
           </div>
           <div className="flex items-center justify-between px-5 py-4 border-t border-outline-variant bg-surface-container">
             <span className="text-sm font-semibold text-primary">Total</span>
