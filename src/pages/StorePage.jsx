@@ -384,6 +384,40 @@ export default function StorePage() {
       {/* ── Hero ── */}
       <div className="relative overflow-hidden" style={{ minHeight: 'clamp(200px, 30vw, 280px)', ...(isCroche ? { background: heroBgGradient } : heroStaticStyle) }}>
 
+        {/* TCG — cartas flutuantes + shimmer */}
+        {!isCroche && (
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            {/* Shimmer sweep */}
+            <div style={{
+              position: 'absolute', inset: 0,
+              background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.07) 50%, transparent 60%)',
+              animation: 'shimmerSweep 4s ease-in-out infinite',
+              animationDelay: '1s',
+            }} />
+            {/* Floating cards */}
+            {[
+              { w: 52, h: 72, top: '10%',  left: '72%', r0: '-8deg',  r1: '-5deg',  op: 0.10, dur: '6s',  del: '0s'   },
+              { w: 40, h: 56, top: '55%',  left: '80%', r0: '12deg',  r1: '15deg',  op: 0.07, dur: '8s',  del: '1.5s' },
+              { w: 60, h: 84, top: '20%',  left: '88%', r0: '-4deg',  r1: '-7deg',  op: 0.09, dur: '7s',  del: '0.8s' },
+              { w: 34, h: 48, top: '65%',  left: '65%', r0: '6deg',   r1: '9deg',   op: 0.06, dur: '9s',  del: '2s'   },
+              { w: 44, h: 62, top: '5%',   left: '60%', r0: '-12deg', r1: '-9deg',  op: 0.08, dur: '7.5s',del: '3s'   },
+              { w: 30, h: 42, top: '75%',  left: '92%', r0: '3deg',   r1: '6deg',   op: 0.05, dur: '10s', del: '1s'   },
+            ].map((c, i) => (
+              <div key={i} style={{
+                position: 'absolute',
+                top: c.top, left: c.left,
+                width: c.w, height: c.h,
+                borderRadius: 4,
+                background: 'rgba(255,255,255,0.18)',
+                boxShadow: '0 4px 24px rgba(53,37,205,0.35), inset 0 0 0 1px rgba(255,255,255,0.25)',
+                '--r0': c.r0, '--r1': c.r1, '--op': c.op,
+                animation: `cardFloat ${c.dur} ease-in-out infinite`,
+                animationDelay: c.del,
+              }} />
+            ))}
+          </div>
+        )}
+
         {/* Crochê — fita de fotos full-height */}
         {isCroche && crocheImages.length > 0 && (
           <>
