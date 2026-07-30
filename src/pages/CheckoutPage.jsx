@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase'
 import useCartStore from '../store/useCartStore'
 import { useAuth } from '../contexts/AuthContext'
+
+const DELIVERY_ACK_KEY = 'bad_delivery_ack'
 
 const RATE_LIMIT_MINUTES = 3
 
@@ -54,6 +57,8 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
   const [successOrderId, setSuccessOrderId] = useState(null)
+  const [deliveryModal, setDeliveryModal] = useState(false)
+  const [dontShowAgain, setDontShowAgain] = useState(false)
 
   // O que já existe no perfil
   const hasName  = !profileLoading && !!profile?.name
@@ -91,15 +96,34 @@ export default function CheckoutPage() {
     }
   }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
+  function validateFields() {
     setContactTouched(true)
-    if (!hasName && !name.trim()) { setError('Preencha seu nome.'); return }
+    if (!hasName && !name.trim()) { setError('Preencha seu nome.'); return false }
     if (!hasPhone) {
       const { valid, msg } = validateContact(contact)
-      if (!valid) { setContactError(msg); return }
+      if (!valid) { setContactError(msg); return false }
     }
+    return true
+  }
 
+  const handleConfirmClick = () => {
+    if (!validateFields()) return
+    if (localStorage.getItem(DELIVERY_ACK_KEY) === '1') {
+      doSubmit()
+    } else {
+      setDeliveryModal(true)
+    }
+  }
+
+  const handleDeliveryConfirm = () => {
+    if (dontShowAgain) localStorage.setItem(DELIVERY_ACK_KEY, '1')
+    setDeliveryModal(false)
+    doSubmit()
+  }
+
+  const handleSubmit = (e) => { e.preventDefault() }
+
+  const doSubmit = async () => {
     setSubmitting(true)
     setError(null)
     try {
@@ -372,7 +396,8 @@ export default function CheckoutPage() {
 
           <div className="pt-1">
             <button
-              type="submit"
+              type="button"
+              onClick={handleConfirmClick}
               disabled={!canSubmit}
               className="w-full py-3.5 rounded-lg font-bold text-sm active:scale-[.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg bg-primary text-on-primary hover:opacity-90 disabled:cursor-not-allowed"
             >
@@ -387,6 +412,55 @@ export default function CheckoutPage() {
           </div>
         </form>
       </div>
+
+      {/* Modal de entrega */}
+      {deliveryModal && createPortal(
+        <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
+          <div className="w-full max-w-sm bg-surface-container-low rounded-2xl overflow-hidden shadow-2xl animate-fade-in">
+            {/* Topo colorido */}
+            <div className="px-5 pt-5 pb-4 border-b border-outline-variant/40">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined text-primary text-xl">local_shipping</span>
+                </div>
+                <h2 className="text-base font-display font-black text-on-surface leading-tight">Informações de entrega</h2>
+              </div>
+              <p className="text-sm text-on-surface leading-relaxed">
+                Realizamos entregas <strong>apenas em Curitiba e região</strong>. Após a confirmação do pedido, entraremos em contato no número informado para combinar o envio.
+              </p>
+            </div>
+
+            <div className="px-5 py-4 space-y-4">
+              <label className="flex items-center gap-3 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={dontShowAgain}
+                  onChange={e => setDontShowAgain(e.target.checked)}
+                  className="w-4 h-4 rounded"
+                  style={{ accentColor: '#3525cd' }}
+                />
+                <span className="text-xs text-on-surface-variant group-hover:text-on-surface transition-colors">Não exibir novamente</span>
+              </label>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setDeliveryModal(false)}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-outline-variant text-on-surface-variant hover:bg-surface-container transition-colors"
+                >
+                  Voltar
+                </button>
+                <button
+                  onClick={handleDeliveryConfirm}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-bold action-gradient text-white hover:opacity-90 transition-opacity"
+                >
+                  Estou ciente, confirmar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   )
 }

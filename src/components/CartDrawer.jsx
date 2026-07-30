@@ -71,11 +71,16 @@ export default function CartDrawer() {
                   className="flex gap-4 items-start pb-6 border-b border-outline-variant/30 last:border-0 last:pb-0 animate-fade-in"
                   style={{ animationDelay: `${idx * 40}ms`, animationFillMode: 'both' }}
                 >
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-surface-container rounded-lg p-2 shrink-0 flex items-center justify-center">
-                    {item.imageUrl ? (
-                      <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" />
-                    ) : (
-                      <span className="material-symbols-outlined text-on-surface-variant opacity-30">image</span>
+                  <div
+                    className="w-16 h-16 shrink-0 rounded-lg overflow-hidden flex items-center justify-center relative"
+                    style={{
+                      backgroundImage: item.saleCategory === 'croche'
+                        ? 'repeating-linear-gradient(135deg,#f0dbff 0px,#f0dbff 8px,#e6cdf7 8px,#e6cdf7 16px)'
+                        : 'repeating-linear-gradient(135deg,#e2dfff 0px,#e2dfff 8px,#d7d2fb 8px,#d7d2fb 16px)'
+                    }}
+                  >
+                    {item.imageUrl && (
+                      <img src={item.imageUrl} alt={item.name} className="absolute inset-0 w-full h-full object-contain p-1.5" />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -84,17 +89,17 @@ export default function CartDrawer() {
                     <div className="flex items-center gap-3">
                       <button
                         onClick={() => item.quantity > 1 ? setQty(item.id, item.quantity - 1) : remove(item.id)}
-                        className="w-7 h-7 border border-outline-variant rounded flex items-center justify-center text-xs hover:border-primary hover:text-primary active:scale-90 transition-all"
+                        className="w-9 h-9 border border-outline-variant rounded flex items-center justify-center text-sm hover:border-primary hover:text-primary active:scale-90 transition-all"
                       >-</button>
-                      <span className="text-sm font-bold w-4 text-center">{item.quantity}</span>
+                      <span className="text-sm font-bold w-5 text-center">{item.quantity}</span>
                       <button
                         onClick={() => setQty(item.id, item.quantity + 1)}
                         disabled={item.quantity >= item.available}
-                        className="w-7 h-7 border border-outline-variant rounded flex items-center justify-center text-xs hover:border-primary hover:text-primary active:scale-90 transition-all disabled:opacity-30"
+                        className="w-9 h-9 border border-outline-variant rounded flex items-center justify-center text-sm hover:border-primary hover:text-primary active:scale-90 transition-all disabled:opacity-30"
                       >+</button>
                       <button
                         onClick={() => remove(item.id)}
-                        className="ml-2 text-on-surface-variant hover:text-error active:scale-90 transition-all"
+                        className="ml-2 p-2 text-on-surface-variant hover:text-error active:scale-90 transition-all"
                       >
                         <span className="material-symbols-outlined text-sm">delete</span>
                       </button>
@@ -111,7 +116,7 @@ export default function CartDrawer() {
               </div>
               <button
                 onClick={() => { setOpen(false); navigate('/checkout') }}
-                className="w-full bg-primary-container text-white font-bold py-4 rounded-lg flex items-center justify-center gap-2 hover:scale-[1.02] hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-primary/20"
+                className="w-full action-gradient text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 hover:scale-[1.02] hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-primary/20"
               >
                 Finalizar Pedido
                 <span className="material-symbols-outlined">arrow_forward</span>
