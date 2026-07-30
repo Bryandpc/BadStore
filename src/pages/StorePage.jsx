@@ -473,9 +473,9 @@ export default function StorePage() {
                           {item.targetPrice != null && (
                             <span className="font-price text-[13px] font-bold text-on-surface">{fmtBRL(item.targetPrice)}</span>
                           )}
-                          {(item.available ?? 0) > 0 ? (
+                          {(item.saleCategory === 'croche' || (item.available ?? 0) > 0) ? (
                             <button
-                              onClick={() => add({ id: item.id, name: item.name, imageUrl: item.imageUrl, unitPrice: item.targetPrice, available: item.available, saleCategory: item.saleCategory, itemSubtype: item.itemSubtype })}
+                              onClick={() => add({ id: item.id, name: item.name, imageUrl: item.imageUrl, unitPrice: item.targetPrice, available: item.saleCategory === 'croche' ? 999 : item.available, saleCategory: item.saleCategory, itemSubtype: item.itemSubtype })}
                               className="flex items-center justify-center shrink-0"
                               style={{ width: 36, height: 36, borderRadius: 8, border: 'none', cursor: 'pointer', background: accentF, color: accentFT }}
                             >

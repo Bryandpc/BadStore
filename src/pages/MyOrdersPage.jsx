@@ -23,6 +23,7 @@ const STATUS_META = {
   draft:                  { label: 'Ag. Pagamento',    bg: '#fef3c7', fg: '#92400e', icon: 'payments' },
   confirmado:             { label: 'Pago',             bg: '#dbeafe', fg: '#1e40af', icon: 'check_circle' },
   separando:              { label: 'Em confecção',     bg: '#fce7f3', fg: '#9d174d', icon: 'inventory_2' },
+  confeccionado:          { label: 'Pronto',           bg: '#fdf2f8', fg: '#be185d', icon: 'check_circle' },
   enviado:                { label: 'Enviado',          bg: '#ede9fe', fg: '#5b21b6', icon: 'local_shipping' },
   entregue:               { label: 'Entregue',         bg: '#d1fae5', fg: '#065f46', icon: 'done_all' },
   cancelado:              { label: 'Cancelado',        bg: '#fee2e2', fg: '#991b1b', icon: 'cancel' },
@@ -39,26 +40,45 @@ function StatusBadge({ status }) {
 
 // ── Vertical Timeline ────────────────────────────────────────────────────────
 
-const STEPS_NORMAL = [
-  { key: 'draft',      label: 'Aguardando pagamento',     helper: 'Aguardando a confirmação do Pix.',                 icon: 'payments' },
-  { key: 'confirmado', label: 'Pagamento confirmado',      helper: 'Pagamento recebido, preparando seu pedido.',       icon: 'check_circle' },
-  { key: 'separando',  label: 'Em confecção / separação',  helper: 'Seu pedido está sendo separado ou produzido.',    icon: 'inventory_2' },
-  { key: 'enviado',    label: 'Enviado',                   helper: 'A caminho do endereço combinado.',                 icon: 'local_shipping' },
-  { key: 'entregue',   label: 'Entregue',                  helper: 'Pedido concluído.',                               icon: 'done_all' },
+// TCG: paga e retira / envia cards
+const STEPS_TCG = [
+  { key: 'draft',      label: 'Aguardando pagamento',  helper: 'Aguardando a confirmação do Pix.',             icon: 'payments' },
+  { key: 'confirmado', label: 'Pagamento confirmado',   helper: 'Pagamento recebido, preparando seu pedido.',   icon: 'check_circle' },
+  { key: 'separando',  label: 'Separando',              helper: 'Seu pedido está sendo separado.',              icon: 'inventory_2' },
+  { key: 'enviado',    label: 'Enviado',                helper: 'A caminho do endereço combinado.',              icon: 'local_shipping' },
+  { key: 'entregue',   label: 'Entregue',               helper: 'Pedido concluído.',                            icon: 'done_all' },
 ]
 
-const STEPS_CUSTOM = [
-  { key: 'orcamento',              label: 'Pedido recebido',         helper: 'Analisando sua referência e descrição.',              icon: 'schedule' },
-  { key: 'aguardando_confirmacao', label: 'Orçamento enviado',       helper: 'Confirme ou recuse o valor abaixo.',                  icon: 'request_quote' },
-  { key: 'confirmado',             label: 'Confirmado',              helper: 'Ótimo! Vamos iniciar a produção.',                    icon: 'check_circle' },
-  { key: 'separando',              label: 'Em confecção',            helper: 'Seu item personalizado está sendo feito com carinho.', icon: 'inventory_2' },
-  { key: 'enviado',                label: 'Enviado',                 helper: 'A caminho do endereço combinado.',                    icon: 'local_shipping' },
-  { key: 'entregue',               label: 'Entregue',                helper: 'Pedido concluído.',                                   icon: 'done_all' },
+// Crochê normal (não-personalizado)
+const STEPS_CROCHE = [
+  { key: 'draft',          label: 'Aguardando confirmação', helper: 'Aguardando sua confirmação do pedido.',              icon: 'schedule' },
+  { key: 'confirmado',     label: 'Confirmado',              helper: 'Pedido confirmado, vamos iniciar a confecção!',      icon: 'check_circle' },
+  { key: 'separando',      label: 'Em confecção',            helper: 'Seu pedido está sendo confeccionado com carinho.',   icon: 'inventory_2' },
+  { key: 'confeccionado',  label: 'Pronto',                  helper: 'Seu item está pronto! Em breve entraremos em contato.', icon: 'done_all' },
+  { key: 'enviado',        label: 'Enviado',                 helper: 'A caminho do endereço combinado.',                   icon: 'local_shipping' },
+  { key: 'entregue',       label: 'Entregue',                helper: 'Pedido concluído.',                                  icon: 'celebration' },
+]
+
+// Crochê personalizado (chaveiro etc.)
+const STEPS_CROCHE_CUSTOM = [
+  { key: 'orcamento',              label: 'Ag. Orçamento',     helper: 'Analisando sua referência e descrição.',                  icon: 'schedule' },
+  { key: 'aguardando_confirmacao', label: 'Ag. Confirmação',   helper: 'Confirme ou recuse o valor abaixo.',                      icon: 'request_quote' },
+  { key: 'confirmado',             label: 'Confirmado',        helper: 'Ótimo! Vamos iniciar a confecção.',                       icon: 'check_circle' },
+  { key: 'separando',              label: 'Em confecção',      helper: 'Seu item personalizado está sendo feito com carinho.',    icon: 'inventory_2' },
+  { key: 'confeccionado',          label: 'Pronto',            helper: 'Seu item está pronto! Em breve entraremos em contato.',   icon: 'done_all' },
+  { key: 'enviado',                label: 'Enviado',           helper: 'A caminho do endereço combinado.',                        icon: 'local_shipping' },
+  { key: 'entregue',               label: 'Entregue',          helper: 'Pedido concluído.',                                       icon: 'celebration' },
 ]
 
 function isCustomOrderFlow(order) {
   return (order.items ?? []).some(i =>
     i.isCustomOrder === true || String(i.id ?? '').startsWith('custom-')
+  ) || ['orcamento', 'aguardando_confirmacao'].includes(order.status)
+}
+
+function isCrocheOrder(order) {
+  return (order.items ?? []).some(i =>
+    i.saleCategory === 'croche' || i.isCustomOrder === true || String(i.id ?? '').startsWith('custom-')
   ) || ['orcamento', 'aguardando_confirmacao'].includes(order.status)
 }
 
@@ -81,7 +101,9 @@ function OrderTimeline({ order }) {
     )
   }
 
-  const steps = isCustomOrderFlow(order) ? STEPS_CUSTOM : STEPS_NORMAL
+  const isCustom = isCustomOrderFlow(order)
+  const isCroche = isCrocheOrder(order)
+  const steps = isCustom ? STEPS_CROCHE_CUSTOM : isCroche ? STEPS_CROCHE : STEPS_TCG
   const currentIdx = Math.max(0, stepIndex(order.status, steps))
 
   return (
@@ -450,9 +472,9 @@ function OrderDetail({ order }) {
             {m.label}
           </p>
         </div>
-        {order.total > 0 && (
+        {(order.total > 0 || order.quotedPrice > 0) && (
           <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 20, fontWeight: 800, color: '#191c1e' }}>
-            {fmtBRL(order.total)}
+            {fmtBRL(order.total > 0 ? order.total : order.quotedPrice)}
           </span>
         )}
       </div>
@@ -490,10 +512,14 @@ function OrderDetail({ order }) {
             )}
           </div>
         ))}
-        {order.total > 0 && (
+        {(order.total > 0 || order.quotedPrice > 0) && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0' }}>
-            <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', color: '#3525cd' }}>Total</span>
-            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 16, fontWeight: 800, color: '#191c1e' }}>{fmtBRL(order.total)}</span>
+            <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', color: '#3525cd' }}>
+              {order.total > 0 ? 'Total' : 'Total orçado'}
+            </span>
+            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 16, fontWeight: 800, color: '#191c1e' }}>
+              {fmtBRL(order.total > 0 ? order.total : order.quotedPrice)}
+            </span>
           </div>
         )}
       </div>
@@ -772,7 +798,7 @@ export default function MyOrdersPage({ defaultTab }) {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: 11, color: '#777587' }}>{fmtDate(o.createdAt)}</span>
                   <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, fontWeight: 800, color: '#191c1e' }}>
-                    {o.total > 0 ? fmtBRL(o.total) : '—'}
+                    {o.total > 0 ? fmtBRL(o.total) : o.quotedPrice > 0 ? fmtBRL(o.quotedPrice) : '—'}
                   </span>
                 </div>
                 {/* Item summary */}
@@ -817,9 +843,9 @@ export default function MyOrdersPage({ defaultTab }) {
             <p style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 15, fontWeight: 800, color: m.fg, margin: 0 }}>{m.label}</p>
             <p style={{ fontSize: 11, color: m.fg, opacity: 0.75, margin: 0 }}>{fmtDate(selectedOrder.createdAt)}</p>
           </div>
-          {selectedOrder.total > 0 && (
+          {(selectedOrder.total > 0 || selectedOrder.quotedPrice > 0) && (
             <span style={{ marginLeft: 'auto', fontFamily: "'JetBrains Mono',monospace", fontSize: 16, fontWeight: 800, color: '#191c1e' }}>
-              {fmtBRL(selectedOrder.total)}
+              {fmtBRL(selectedOrder.total > 0 ? selectedOrder.total : selectedOrder.quotedPrice)}
             </span>
           )}
         </div>
@@ -857,10 +883,14 @@ export default function MyOrdersPage({ defaultTab }) {
               )}
             </div>
           ))}
-          {selectedOrder.total > 0 && (
+          {(selectedOrder.total > 0 || selectedOrder.quotedPrice > 0) && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: '#f2f4f6' }}>
-              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#3525cd' }}>Total</span>
-              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 16, fontWeight: 800 }}>{fmtBRL(selectedOrder.total)}</span>
+              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#3525cd' }}>
+                {selectedOrder.total > 0 ? 'Total' : 'Total orçado'}
+              </span>
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 16, fontWeight: 800 }}>
+                {fmtBRL(selectedOrder.total > 0 ? selectedOrder.total : selectedOrder.quotedPrice)}
+              </span>
             </div>
           )}
         </div>
@@ -1016,7 +1046,7 @@ export default function MyOrdersPage({ defaultTab }) {
                           </span>
                           <span style={{ fontSize: 11, color: '#777587' }}>{fmtDate(o.createdAt)}</span>
                           <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, fontWeight: 800 }}>
-                            {o.total > 0 ? fmtBRL(o.total) : '—'}
+                            {o.total > 0 ? fmtBRL(o.total) : o.quotedPrice > 0 ? fmtBRL(o.quotedPrice) : '—'}
                           </span>
                           {unseenReply && !isSelected && (
                             <span style={{ position: 'absolute', top: 8, right: 8, width: 7, height: 7, borderRadius: 99, background: '#3525cd' }} />
