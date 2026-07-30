@@ -3,7 +3,8 @@
 @tailwind utilities;
 
 @layer base {
-  html { color-scheme: light; }
+  html { color-scheme: only light; }
+  * { color-scheme: only light; }
   body {
     background-color: #f4f6f9;
     color: #191c1e;
