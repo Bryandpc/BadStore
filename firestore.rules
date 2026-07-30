@@ -2,6 +2,13 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ── config ───────────────────────────────────────────────────────────────
+    // Leitura pública — banners da loja, etc. Escrita só via Admin SDK.
+    match /config/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // ── stock_items ──────────────────────────────────────────────────────────
     // Leitura pública (catálogo do BadStore)
     // Escrita APENAS via Admin SDK do BadTracking (regra false bloqueia client SDK)
