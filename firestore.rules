@@ -36,7 +36,7 @@ service cloud.firestore {
     match /orders/{orderId} {
       allow create: if request.auth != null
         && request.resource.data.uid == request.auth.uid
-        && request.resource.data.status == 'draft'
+        && request.resource.data.status in ['draft', 'orcamento']
         && request.resource.data.origem == 'badstore'
         && request.resource.data.keys().hasAll(['customerName', 'customerContact', 'items', 'total']);
 

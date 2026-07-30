@@ -15,13 +15,17 @@ function fmtDate(ts) {
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'
+
 const STATUS_META = {
-  draft:      { label: 'Ag. Pagamento', bg: '#fef3c7', fg: '#92400e', icon: 'payments' },
-  confirmado: { label: 'Pago',          bg: '#dbeafe', fg: '#1e40af', icon: 'check_circle' },
-  separando:  { label: 'Em confecção',  bg: '#fce7f3', fg: '#9d174d', icon: 'inventory_2' },
-  enviado:    { label: 'Enviado',       bg: '#ede9fe', fg: '#5b21b6', icon: 'local_shipping' },
-  entregue:   { label: 'Entregue',      bg: '#d1fae5', fg: '#065f46', icon: 'done_all' },
-  cancelado:  { label: 'Cancelado',     bg: '#fee2e2', fg: '#991b1b', icon: 'cancel' },
+  orcamento:              { label: 'Em análise',       bg: '#fdf2f8', fg: '#9d174d', icon: 'schedule' },
+  aguardando_confirmacao: { label: 'Orçamento pronto', bg: '#fff7ed', fg: '#c2410c', icon: 'request_quote' },
+  draft:                  { label: 'Ag. Pagamento',    bg: '#fef3c7', fg: '#92400e', icon: 'payments' },
+  confirmado:             { label: 'Pago',             bg: '#dbeafe', fg: '#1e40af', icon: 'check_circle' },
+  separando:              { label: 'Em confecção',     bg: '#fce7f3', fg: '#9d174d', icon: 'inventory_2' },
+  enviado:                { label: 'Enviado',          bg: '#ede9fe', fg: '#5b21b6', icon: 'local_shipping' },
+  entregue:               { label: 'Entregue',         bg: '#d1fae5', fg: '#065f46', icon: 'done_all' },
+  cancelado:              { label: 'Cancelado',        bg: '#fee2e2', fg: '#991b1b', icon: 'cancel' },
 }
 
 function StatusBadge({ status }) {
@@ -35,17 +39,31 @@ function StatusBadge({ status }) {
 
 // ── Vertical Timeline ────────────────────────────────────────────────────────
 
-const STEPS = [
-  { key: 'draft',      label: 'Aguardando pagamento',         helper: 'Aguardando a confirmação do Pix.',                      icon: 'payments' },
-  { key: 'confirmado', label: 'Pagamento confirmado',          helper: 'Pagamento recebido, preparando seu pedido.',             icon: 'check_circle' },
-  { key: 'separando',  label: 'Em confecção / separação',      helper: 'Seu pedido está sendo separado ou produzido.',          icon: 'inventory_2' },
-  { key: 'enviado',    label: 'Enviado',                       helper: 'A caminho do endereço combinado.',                      icon: 'local_shipping' },
-  { key: 'entregue',   label: 'Entregue',                      helper: 'Pedido concluído.',                                     icon: 'done_all' },
+const STEPS_NORMAL = [
+  { key: 'draft',      label: 'Aguardando pagamento',     helper: 'Aguardando a confirmação do Pix.',                 icon: 'payments' },
+  { key: 'confirmado', label: 'Pagamento confirmado',      helper: 'Pagamento recebido, preparando seu pedido.',       icon: 'check_circle' },
+  { key: 'separando',  label: 'Em confecção / separação',  helper: 'Seu pedido está sendo separado ou produzido.',    icon: 'inventory_2' },
+  { key: 'enviado',    label: 'Enviado',                   helper: 'A caminho do endereço combinado.',                 icon: 'local_shipping' },
+  { key: 'entregue',   label: 'Entregue',                  helper: 'Pedido concluído.',                               icon: 'done_all' },
 ]
 
-function stepIndex(status) {
-  const map = { draft: 0, confirmado: 1, separando: 2, enviado: 3, entregue: 4 }
-  return map[status] ?? 0
+const STEPS_CUSTOM = [
+  { key: 'orcamento',              label: 'Pedido recebido',         helper: 'Analisando sua referência e descrição.',              icon: 'schedule' },
+  { key: 'aguardando_confirmacao', label: 'Orçamento enviado',       helper: 'Confirme ou recuse o valor abaixo.',                  icon: 'request_quote' },
+  { key: 'confirmado',             label: 'Confirmado',              helper: 'Ótimo! Vamos iniciar a produção.',                    icon: 'check_circle' },
+  { key: 'separando',              label: 'Em confecção',            helper: 'Seu item personalizado está sendo feito com carinho.', icon: 'inventory_2' },
+  { key: 'enviado',                label: 'Enviado',                 helper: 'A caminho do endereço combinado.',                    icon: 'local_shipping' },
+  { key: 'entregue',               label: 'Entregue',                helper: 'Pedido concluído.',                                   icon: 'done_all' },
+]
+
+function isCustomOrderFlow(order) {
+  return (order.items ?? []).some(i =>
+    i.isCustomOrder === true || String(i.id ?? '').startsWith('custom-')
+  ) || ['orcamento', 'aguardando_confirmacao'].includes(order.status)
+}
+
+function stepIndex(status, steps) {
+  return steps.findIndex(s => s.key === status)
 }
 
 function OrderTimeline({ order }) {
@@ -63,13 +81,14 @@ function OrderTimeline({ order }) {
     )
   }
 
-  const currentIdx = stepIndex(order.status)
+  const steps = isCustomOrderFlow(order) ? STEPS_CUSTOM : STEPS_NORMAL
+  const currentIdx = Math.max(0, stepIndex(order.status, steps))
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', marginBottom: 24 }}>
-      {STEPS.map((step, i) => {
+      {steps.map((step, i) => {
         const done = i < currentIdx
         const active = i === currentIdx
-        const pending = i > currentIdx
         const circleStyle = {
           width: 28, height: 28, borderRadius: 99,
           display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
@@ -89,7 +108,7 @@ function OrderTimeline({ order }) {
                   {done ? 'check' : step.icon}
                 </span>
               </div>
-              {i < STEPS.length - 1 && <div style={lineStyle} />}
+              {i < steps.length - 1 && <div style={lineStyle} />}
             </div>
             <div style={{ paddingBottom: 20 }}>
               <p style={{ fontSize: 12, fontWeight: 700, color: labelColor, margin: '0 0 2px' }}>{step.label}</p>
@@ -100,6 +119,116 @@ function OrderTimeline({ order }) {
           </div>
         )
       })}
+    </div>
+  )
+}
+
+// ── Quote Banner — aguardando_confirmacao ────────────────────────────────────
+
+function QuoteBanner({ order, onAction }) {
+  const [loading, setLoading] = useState(null) // 'confirmar' | 'cancelar'
+  const [error, setError] = useState(null)
+  const [done, setDone] = useState(false)
+
+  const handleAction = async (action) => {
+    setLoading(action)
+    setError(null)
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/firebase-orders/${order.id}/customer-confirm`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Erro ao processar')
+      }
+      setDone(action)
+      if (onAction) onAction(action)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setLoading(null)
+    }
+  }
+
+  if (done === 'confirmar') {
+    return (
+      <div style={{ background: '#d1fae5', border: '1px solid #6ee7b7', borderRadius: 10, padding: '14px 16px', marginBottom: 20, textAlign: 'center' }}>
+        <p style={{ fontSize: 13, fontWeight: 700, color: '#065f46', margin: '0 0 4px' }}>✅ Pedido confirmado!</p>
+        <p style={{ fontSize: 11, color: '#065f46', margin: 0 }}>Em breve entraremos em contato para combinar o pagamento.</p>
+      </div>
+    )
+  }
+
+  if (done === 'cancelar') {
+    return (
+      <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 10, padding: '14px 16px', marginBottom: 20, textAlign: 'center' }}>
+        <p style={{ fontSize: 13, fontWeight: 700, color: '#991b1b', margin: '0 0 4px' }}>Pedido cancelado.</p>
+        <p style={{ fontSize: 11, color: '#991b1b', margin: 0 }}>Se mudar de ideia, fale com a gente!</p>
+      </div>
+    )
+  }
+
+  const price = order.quotedPrice
+  const fmtPrice = (v) => Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+
+  return (
+    <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 12, padding: '16px', marginBottom: 20 }}>
+      <p style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.06em', color: '#c2410c', margin: '0 0 10px' }}>
+        💰 Seu orçamento chegou!
+      </p>
+      {price > 0 && (
+        <div style={{ textAlign: 'center', marginBottom: 14, padding: '10px', background: '#fff', borderRadius: 8, border: '1px solid #fed7aa' }}>
+          <p style={{ fontSize: 11, color: '#9a97ab', margin: '0 0 4px' }}>Valor total do pedido</p>
+          <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 28, fontWeight: 900, color: '#ea580c', margin: 0 }}>
+            {fmtPrice(price)}
+          </p>
+        </div>
+      )}
+      <p style={{ fontSize: 11, color: '#777587', margin: '0 0 12px', lineHeight: 1.5 }}>
+        Aceite o orçamento para confirmar seu pedido, ou cancele se preferir não prosseguir.
+      </p>
+      {error && (
+        <p style={{ fontSize: 11, color: '#991b1b', margin: '0 0 10px' }}>{error}</p>
+      )}
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button
+          onClick={() => handleAction('cancelar')}
+          disabled={!!loading}
+          style={{
+            flex: 1, border: '1px solid #fca5a5', background: '#fff', color: '#991b1b',
+            borderRadius: 8, padding: '10px', fontSize: 12, fontWeight: 700,
+            cursor: loading ? 'not-allowed' : 'pointer', opacity: loading === 'cancelar' ? 0.5 : 1,
+          }}
+        >
+          {loading === 'cancelar' ? '...' : 'Cancelar'}
+        </button>
+        <button
+          onClick={() => handleAction('confirmar')}
+          disabled={!!loading}
+          style={{
+            flex: 2, border: 'none', background: '#ea580c', color: '#fff',
+            borderRadius: 8, padding: '10px', fontSize: 13, fontWeight: 800,
+            cursor: loading ? 'not-allowed' : 'pointer', opacity: loading === 'confirmar' ? 0.5 : 1,
+          }}
+        >
+          {loading === 'confirmar' ? 'Confirmando...' : '✅ Aceitar orçamento'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Orcamento waiting banner ──────────────────────────────────────────────────
+
+function OrcamentoBanner() {
+  return (
+    <div style={{ background: '#fdf2f8', border: '1px solid #fbcfe8', borderRadius: 10, padding: '14px 16px', marginBottom: 20 }}>
+      <p style={{ fontSize: 12, fontWeight: 700, color: '#9d174d', margin: '0 0 4px' }}>🧶 Pedido personalizado em análise</p>
+      <p style={{ fontSize: 11, color: '#777587', margin: 0, lineHeight: 1.5 }}>
+        Estamos analisando sua foto de referência e descrição. Em breve enviaremos um orçamento por email e notificação!
+      </p>
     </div>
   )
 }
@@ -330,6 +459,10 @@ function OrderDetail({ order }) {
 
       {/* Timeline */}
       <OrderTimeline order={order} />
+
+      {/* Custom order banners */}
+      {(order.status === 'orcamento' || (order.status === 'draft' && isCustomOrderFlow(order))) && <OrcamentoBanner />}
+      {order.status === 'aguardando_confirmacao' && <QuoteBanner order={order} />}
 
       {/* Pix proof */}
       {order.status === 'confirmado' && <ProofField order={order} />}
@@ -693,6 +826,10 @@ export default function MyOrdersPage({ defaultTab }) {
 
         {/* Timeline */}
         <OrderTimeline order={selectedOrder} />
+
+        {/* Custom order banners */}
+        {(selectedOrder.status === 'orcamento' || (selectedOrder.status === 'draft' && isCustomOrderFlow(selectedOrder))) && <OrcamentoBanner />}
+        {selectedOrder.status === 'aguardando_confirmacao' && <QuoteBanner order={selectedOrder} />}
 
         {/* Pix */}
         {selectedOrder.status === 'confirmado' && <ProofField order={selectedOrder} />}

@@ -75,6 +75,7 @@ export default function CheckoutPage() {
   }, [user, navigate])
 
   const hasCroche = items.some(i => i.saleCategory === 'croche')
+  const hasCustomOrder = items.some(i => i.isCustomOrder === true)
 
   useEffect(() => {
     if (!hasCroche) return
@@ -176,7 +177,7 @@ export default function CheckoutPage() {
         uid:  user?.uid ?? null,
         items: orderItems,
         total,
-        status:  'draft',
+        status:  hasCustomOrder ? 'orcamento' : 'draft',
         origem:  'badstore',
         createdAt: serverTimestamp(),
       })
