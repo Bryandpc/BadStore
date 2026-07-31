@@ -65,6 +65,7 @@ export default function CheckoutPage() {
   const [wantReserva, setWantReserva] = useState(false)
   const [reservaModal, setReservaModal] = useState(false)
   const [reservaDontShow, setReservaDontShow] = useState(false)
+  const [reservaDate, setReservaDate] = useState('')
 
   // O que já existe no perfil
   const hasName  = !profileLoading && !!profile?.name
@@ -201,6 +202,7 @@ export default function CheckoutPage() {
         total,
         status:   hasCustomOrder ? 'orcamento' : 'draft',
         isReserva: isReserva && !hasCustomOrder,
+        ...(isReserva && reservaDate ? { reservaDesiredDate: reservaDate } : {}),
         origem:   'badstore',
         createdAt: serverTimestamp(),
       })
@@ -512,10 +514,33 @@ export default function CheckoutPage() {
                     🔒 Reservar itens (pagar 25% agora)
                   </p>
                   <p className="text-xs mt-0.5" style={{ color: wantReserva ? '#b45309' : '#9ca3af' }}>
-                    Pague {Number(reservaAmount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} agora · restante na entrega
+                    Pague {Number(reservaAmount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} agora · restante pós confirmação
                   </p>
                 </div>
               </div>
+              {wantReserva && (
+                <div className="mt-3 pt-3" style={{ borderTop: '1px solid rgba(217,119,6,0.2)' }} onClick={e => e.stopPropagation()}>
+                  <label className="block text-xs font-semibold mb-1.5" style={{ color: '#92400e' }}>
+                    📅 Para qual data deseja pagar o restante?
+                  </label>
+                  <input
+                    type="date"
+                    value={reservaDate}
+                    min={new Date(Date.now() + 86400000).toISOString().slice(0, 10)}
+                    onChange={e => setReservaDate(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 transition"
+                    style={{
+                      border: '1px solid rgba(217,119,6,0.4)',
+                      background: '#fff',
+                      color: reservaDate ? '#92400e' : '#9ca3af',
+                      focusRing: '#d97706',
+                    }}
+                  />
+                  {!reservaDate && (
+                    <p className="text-[10px] mt-1" style={{ color: '#b45309' }}>Opcional · ajuda a loja a planejar</p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
