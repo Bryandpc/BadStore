@@ -7,6 +7,7 @@ import useCartStore from '../store/useCartStore'
 import { useAuth } from '../contexts/AuthContext'
 
 const DELIVERY_ACK_KEY = 'bad_delivery_ack'
+const RESERVA_ACK_KEY  = 'bad_reserva_ack'
 
 const RATE_LIMIT_MINUTES = 3
 
@@ -57,9 +58,13 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
   const [successOrderId, setSuccessOrderId] = useState(null)
+  const [successIsReserva, setSuccessIsReserva] = useState(false)
   const [deliveryModal, setDeliveryModal] = useState(false)
   const [dontShowAgain, setDontShowAgain] = useState(false)
   const [crocheQueue, setCrocheQueue] = useState(null) // { crocheOrderCount, crocheItemCount }
+  const [wantReserva, setWantReserva] = useState(false)
+  const [reservaModal, setReservaModal] = useState(false)
+  const [reservaDontShow, setReservaDontShow] = useState(false)
 
   // O que já existe no perfil
   const hasName  = !profileLoading && !!profile?.name
@@ -92,6 +97,8 @@ export default function CheckoutPage() {
   }, [contact, contactTouched])
 
   const total = items.reduce((s, i) => s + i.unitPrice * i.quantity, 0)
+  const canReserve = !hasCroche && !hasCustomOrder && total > 0
+  const reservaAmount = Math.round(total * 0.25 * 100) / 100
   const contactType = detectContactType(contact)
   const contactValidation = validateContact(hasPhone ? finalContact : contact)
   const nameOk    = hasName  || name.trim().length > 0
@@ -120,7 +127,7 @@ export default function CheckoutPage() {
   const handleConfirmClick = () => {
     if (!validateFields()) return
     if (localStorage.getItem(DELIVERY_ACK_KEY) === '1') {
-      doSubmit()
+      doSubmit(false)
     } else {
       setDeliveryModal(true)
     }
@@ -129,12 +136,27 @@ export default function CheckoutPage() {
   const handleDeliveryConfirm = () => {
     if (dontShowAgain) localStorage.setItem(DELIVERY_ACK_KEY, '1')
     setDeliveryModal(false)
-    doSubmit()
+    doSubmit(false)
+  }
+
+  const handleReservaClick = () => {
+    if (!validateFields()) return
+    if (localStorage.getItem(RESERVA_ACK_KEY) === '1') {
+      doSubmit(true)
+    } else {
+      setReservaModal(true)
+    }
+  }
+
+  const handleReservaConfirm = () => {
+    if (reservaDontShow) localStorage.setItem(RESERVA_ACK_KEY, '1')
+    setReservaModal(false)
+    doSubmit(true)
   }
 
   const handleSubmit = (e) => { e.preventDefault() }
 
-  const doSubmit = async () => {
+  const doSubmit = async (isReserva = false) => {
     setSubmitting(true)
     setError(null)
     try {
@@ -177,8 +199,9 @@ export default function CheckoutPage() {
         uid:  user?.uid ?? null,
         items: orderItems,
         total,
-        status:  hasCustomOrder ? 'orcamento' : 'draft',
-        origem:  'badstore',
+        status:   hasCustomOrder ? 'orcamento' : 'draft',
+        isReserva: isReserva && !hasCustomOrder,
+        origem:   'badstore',
         createdAt: serverTimestamp(),
       })
 
@@ -194,6 +217,7 @@ export default function CheckoutPage() {
       localStorage.setItem(rlKey, Date.now().toString())
       clear()
       setSuccessOrderId(docRef.id)
+      setSuccessIsReserva(isReserva)
 
       // Notificação por email — fire and forget, não bloqueia o UX
       fetch('/api/order-created', {
@@ -206,6 +230,7 @@ export default function CheckoutPage() {
           customerContact: finalContact,
           items: orderItems.map(i => ({ name: i.name, quantity: i.quantity, unitPrice: i.unitPrice, ...(i.desc ? { desc: i.desc } : {}) })),
           total,
+          isReserva: isReserva && !hasCustomOrder,
         }),
       }).catch(() => {})
     } catch (err) {
@@ -226,9 +251,13 @@ export default function CheckoutPage() {
             <span className="material-symbols-outlined text-5xl text-primary">check_circle</span>
           </div>
           <div>
-            <h2 className="text-xl font-display font-black text-on-surface">Pedido recebido!</h2>
+            <h2 className="text-xl font-display font-black text-on-surface">
+              {successIsReserva ? 'Reserva solicitada!' : 'Pedido recebido!'}
+            </h2>
             <p className="text-sm text-on-surface-variant mt-1">
-              Estamos preparando tudo com carinho para você.
+              {successIsReserva
+                ? `Confirmaremos sua reserva em breve e cobraremos ${Number(total * 0.25).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} (25%).`
+                : 'Estamos preparando tudo com carinho para você.'}
             </p>
           </div>
           <div className="bg-surface-container-low border border-outline-variant rounded-xl px-5 py-3 text-center">
@@ -459,19 +488,65 @@ export default function CheckoutPage() {
             </div>
           )}
 
-          <div className="pt-1">
-            <button
-              type="button"
-              onClick={handleConfirmClick}
-              disabled={!canSubmit}
-              className="w-full py-3.5 rounded-lg font-bold text-sm active:scale-[.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg bg-primary text-on-primary hover:opacity-90 disabled:cursor-not-allowed"
+          {/* Reservation option — TCG only, no crochê/custom */}
+          {canReserve && (
+            <div
+              className="rounded-xl p-3.5 cursor-pointer transition-all"
+              style={{
+                background: wantReserva ? 'rgba(217,119,6,0.08)' : '#f9fafb',
+                border: wantReserva ? '1px solid rgba(217,119,6,0.4)' : '1px solid #e5e7eb',
+              }}
+              onClick={() => setWantReserva(v => !v)}
             >
-              <span className="material-symbols-outlined text-base">
-                {submitting ? 'hourglass_empty' : 'check_circle'}
-              </span>
-              {submitting ? 'Confirmando...' : 'Confirmar pedido'}
-            </button>
-            <p className="text-[11px] text-on-surface-variant text-center mt-2">
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0 transition-all"
+                  style={{ background: wantReserva ? '#d97706' : '#e5e7eb' }}
+                >
+                  {wantReserva && (
+                    <span className="material-symbols-outlined text-white" style={{ fontSize: 13 }}>check</span>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold" style={{ color: wantReserva ? '#92400e' : '#374151' }}>
+                    🔒 Reservar itens (pagar 25% agora)
+                  </p>
+                  <p className="text-xs mt-0.5" style={{ color: wantReserva ? '#b45309' : '#9ca3af' }}>
+                    Pague {Number(reservaAmount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} agora · restante na entrega
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="pt-1 space-y-2">
+            {wantReserva && canReserve ? (
+              <button
+                type="button"
+                onClick={handleReservaClick}
+                disabled={!canSubmit}
+                className="w-full py-3.5 rounded-lg font-bold text-sm active:scale-[.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg disabled:cursor-not-allowed"
+                style={{ background: '#d97706', color: '#fff' }}
+              >
+                <span className="material-symbols-outlined text-base">
+                  {submitting ? 'hourglass_empty' : 'lock'}
+                </span>
+                {submitting ? 'Reservando...' : `Reservar · ${Number(reservaAmount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleConfirmClick}
+                disabled={!canSubmit}
+                className="w-full py-3.5 rounded-lg font-bold text-sm active:scale-[.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg bg-primary text-on-primary hover:opacity-90 disabled:cursor-not-allowed"
+              >
+                <span className="material-symbols-outlined text-base">
+                  {submitting ? 'hourglass_empty' : 'check_circle'}
+                </span>
+                {submitting ? 'Confirmando...' : 'Confirmar pedido'}
+              </button>
+            )}
+            <p className="text-[11px] text-on-surface-variant text-center">
               Seu pedido será registrado e você poderá acompanhar o status em Meus Pedidos.
             </p>
           </div>
@@ -519,6 +594,63 @@ export default function CheckoutPage() {
                   className="flex-1 py-2.5 rounded-xl text-sm font-bold action-gradient text-white hover:opacity-90 transition-opacity"
                 >
                   Estou ciente, confirmar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Modal de reserva */}
+      {reservaModal && createPortal(
+        <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
+          <div className="w-full max-w-sm bg-surface-container-low rounded-2xl overflow-hidden shadow-2xl animate-fade-in">
+            <div className="px-5 pt-5 pb-4 border-b border-outline-variant/40">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: 'rgba(217,119,6,0.12)' }}>
+                  <span className="material-symbols-outlined text-xl" style={{ color: '#d97706' }}>lock</span>
+                </div>
+                <h2 className="text-base font-display font-black text-on-surface leading-tight">Como funciona a reserva</h2>
+              </div>
+              <div className="space-y-2.5 text-sm text-on-surface leading-relaxed">
+                <p>🔒 <strong>Você paga 25% agora</strong> para garantir os itens exclusivamente para você.</p>
+                <p>📦 O <strong>restante (75%) é cobrado na entrega</strong>, ao vivo ou via Pix.</p>
+                <p>📍 Entregas realizadas <strong>somente em Curitiba e região</strong>.</p>
+                <p className="text-xs text-on-surface-variant">⚠ A reserva não é reembolsável após confirmação.</p>
+              </div>
+            </div>
+            <div className="px-5 py-4 space-y-4">
+              <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(217,119,6,0.08)', border: '1px solid rgba(217,119,6,0.3)' }}>
+                <p className="text-xs text-gray-500 mb-0.5">Valor da reserva (25%)</p>
+                <p className="text-2xl font-black" style={{ color: '#d97706' }}>
+                  {Number(reservaAmount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                </p>
+                <p className="text-xs text-gray-400">Restante na entrega: {Number(total - reservaAmount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+              </div>
+              <label className="flex items-center gap-3 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={reservaDontShow}
+                  onChange={e => setReservaDontShow(e.target.checked)}
+                  className="w-4 h-4 rounded"
+                  style={{ accentColor: '#d97706' }}
+                />
+                <span className="text-xs text-on-surface-variant group-hover:text-on-surface transition-colors">Não exibir novamente</span>
+              </label>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setReservaModal(false)}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-outline-variant text-on-surface-variant hover:bg-surface-container transition-colors"
+                >
+                  Voltar
+                </button>
+                <button
+                  onClick={handleReservaConfirm}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white transition-opacity hover:opacity-90"
+                  style={{ background: '#d97706' }}
+                >
+                  Confirmar reserva
                 </button>
               </div>
             </div>

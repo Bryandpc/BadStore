@@ -21,11 +21,12 @@ const STATUS_META = {
   orcamento:              { label: 'Em análise',       bg: '#fdf2f8', fg: '#9d174d', icon: 'schedule' },
   aguardando_confirmacao: { label: 'Orçamento pronto', bg: '#fff7ed', fg: '#c2410c', icon: 'request_quote' },
   draft:                  { label: 'Ag. Pagamento',    bg: '#fef3c7', fg: '#92400e', icon: 'payments' },
+  reservado:              { label: 'Reservado',         bg: '#fef3c7', fg: '#92400e', icon: 'lock' },
   confirmado:             { label: 'Pago',             bg: '#dbeafe', fg: '#1e40af', icon: 'check_circle' },
   separando:              { label: 'Em confecção',     bg: '#fce7f3', fg: '#9d174d', icon: 'inventory_2' },
   confeccionado:          { label: 'Pronto',           bg: '#fdf2f8', fg: '#be185d', icon: 'check_circle' },
   enviado:                { label: 'Enviado',          bg: '#ede9fe', fg: '#5b21b6', icon: 'local_shipping' },
-  entregue:               { label: 'Entregue',         bg: '#d1fae5', fg: '#065f46', icon: 'done_all' },
+  entregue:               { label: 'Concluído',        bg: '#d1fae5', fg: '#065f46', icon: 'done_all' },
   cancelado:              { label: 'Cancelado',        bg: '#fee2e2', fg: '#991b1b', icon: 'cancel' },
 }
 
@@ -42,21 +43,30 @@ function StatusBadge({ status }) {
 
 // TCG: paga e retira / envia cards
 const STEPS_TCG = [
-  { key: 'draft',      label: 'Aguardando pagamento',  helper: 'Aguardando a confirmação do Pix.',             icon: 'payments' },
-  { key: 'confirmado', label: 'Pagamento confirmado',   helper: 'Pagamento recebido, preparando seu pedido.',   icon: 'check_circle' },
-  { key: 'separando',  label: 'Separando',              helper: 'Seu pedido está sendo separado.',              icon: 'inventory_2' },
-  { key: 'enviado',    label: 'Enviado',                helper: 'A caminho do endereço combinado.',              icon: 'local_shipping' },
-  { key: 'entregue',   label: 'Entregue',               helper: 'Pedido concluído.',                            icon: 'done_all' },
+  { key: 'draft',      label: 'Ag. Pagamento',  helper: 'Aguardando a confirmação do Pix.',           icon: 'payments' },
+  { key: 'confirmado', label: 'Pago',           helper: 'Pagamento recebido, preparando seu pedido.', icon: 'check_circle' },
+  { key: 'separando',  label: 'Separando',      helper: 'Seu pedido está sendo separado.',            icon: 'inventory_2' },
+  { key: 'enviado',    label: 'Enviado',         helper: 'A caminho do endereço combinado.',           icon: 'local_shipping' },
+  { key: 'entregue',   label: 'Concluído',       helper: 'Pedido concluído.',                          icon: 'done_all' },
+]
+
+const STEPS_TCG_RESERVA = [
+  { key: 'draft',      label: 'Ag. Reserva',    helper: 'Aguardando confirmação da reserva.',          icon: 'lock_open' },
+  { key: 'reservado',  label: 'Reservado',       helper: 'Reserva confirmada! Restante cobrado na entrega.', icon: 'lock' },
+  { key: 'confirmado', label: 'Pago',           helper: 'Pagamento total recebido, preparando seu pedido.', icon: 'check_circle' },
+  { key: 'separando',  label: 'Separando',      helper: 'Seu pedido está sendo separado.',            icon: 'inventory_2' },
+  { key: 'enviado',    label: 'Enviado',         helper: 'A caminho do endereço combinado.',           icon: 'local_shipping' },
+  { key: 'entregue',   label: 'Concluído',       helper: 'Pedido concluído.',                          icon: 'done_all' },
 ]
 
 // Crochê normal (não-personalizado)
 const STEPS_CROCHE = [
-  { key: 'draft',          label: 'Aguardando confirmação', helper: 'Aguardando sua confirmação do pedido.',              icon: 'schedule' },
+  { key: 'draft',          label: 'Pedido recebido',        helper: 'Recebemos seu pedido! Em breve entraremos em contato.',icon: 'schedule' },
   { key: 'confirmado',     label: 'Confirmado',              helper: 'Pedido confirmado, vamos iniciar a confecção!',      icon: 'check_circle' },
   { key: 'separando',      label: 'Em confecção',            helper: 'Seu pedido está sendo confeccionado com carinho.',   icon: 'inventory_2' },
   { key: 'confeccionado',  label: 'Pronto',                  helper: 'Seu item está pronto! Em breve entraremos em contato.', icon: 'done_all' },
   { key: 'enviado',        label: 'Enviado',                 helper: 'A caminho do endereço combinado.',                   icon: 'local_shipping' },
-  { key: 'entregue',       label: 'Entregue',                helper: 'Pedido concluído.',                                  icon: 'celebration' },
+  { key: 'entregue',       label: 'Concluído',               helper: 'Pedido concluído.',                                  icon: 'celebration' },
 ]
 
 // Crochê personalizado (chaveiro etc.)
@@ -67,7 +77,7 @@ const STEPS_CROCHE_CUSTOM = [
   { key: 'separando',              label: 'Em confecção',      helper: 'Seu item personalizado está sendo feito com carinho.',    icon: 'inventory_2' },
   { key: 'confeccionado',          label: 'Pronto',            helper: 'Seu item está pronto! Em breve entraremos em contato.',   icon: 'done_all' },
   { key: 'enviado',                label: 'Enviado',           helper: 'A caminho do endereço combinado.',                        icon: 'local_shipping' },
-  { key: 'entregue',               label: 'Entregue',          helper: 'Pedido concluído.',                                       icon: 'celebration' },
+  { key: 'entregue',               label: 'Concluído',         helper: 'Pedido concluído.',                                       icon: 'celebration' },
 ]
 
 function isCustomOrderFlow(order) {
@@ -103,7 +113,7 @@ function OrderTimeline({ order }) {
 
   const isCustom = isCustomOrderFlow(order)
   const isCroche = isCrocheOrder(order)
-  const steps = isCustom ? STEPS_CROCHE_CUSTOM : isCroche ? STEPS_CROCHE : STEPS_TCG
+  const steps = isCustom ? STEPS_CROCHE_CUSTOM : isCroche ? STEPS_CROCHE : (order.isReserva ? STEPS_TCG_RESERVA : STEPS_TCG)
   const currentIdx = Math.max(0, stepIndex(order.status, steps))
 
   return (
@@ -250,6 +260,34 @@ function OrcamentoBanner() {
       <p style={{ fontSize: 12, fontWeight: 700, color: '#9d174d', margin: '0 0 4px' }}>🧶 Pedido personalizado em análise</p>
       <p style={{ fontSize: 11, color: '#777587', margin: 0, lineHeight: 1.5 }}>
         Estamos analisando sua foto de referência e descrição. Em breve enviaremos um orçamento por email e notificação!
+      </p>
+    </div>
+  )
+}
+
+// ── Reserva banner (reservado status) ────────────────────────────────────────
+
+function ReservaBanner({ order }) {
+  const reservaAmount  = order.reservaAmount ?? 0
+  const pendingAmount  = (order.total ?? 0) - reservaAmount
+  const fmtPrice = (v) => Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+  return (
+    <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 12, padding: '16px', marginBottom: 20 }}>
+      <p style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.06em', color: '#92400e', margin: '0 0 12px' }}>
+        🔒 Reserva confirmada!
+      </p>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+        <div style={{ flex: 1, textAlign: 'center', background: '#fff', borderRadius: 8, padding: '10px 8px', border: '1px solid #fde68a' }}>
+          <p style={{ fontSize: 9, color: '#9a97ab', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '.05em' }}>Pago (25%)</p>
+          <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 16, fontWeight: 900, color: '#d97706', margin: 0 }}>{fmtPrice(reservaAmount)}</p>
+        </div>
+        <div style={{ flex: 1, textAlign: 'center', background: '#fff', borderRadius: 8, padding: '10px 8px', border: '1px solid #fde68a' }}>
+          <p style={{ fontSize: 9, color: '#9a97ab', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '.05em' }}>Pendente (75%)</p>
+          <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 16, fontWeight: 900, color: '#191c1e', margin: 0 }}>{fmtPrice(pendingAmount)}</p>
+        </div>
+      </div>
+      <p style={{ fontSize: 11, color: '#777587', margin: 0, lineHeight: 1.5 }}>
+        O valor restante será cobrado na entrega. Entraremos em contato para combinar o pagamento.
       </p>
     </div>
   )
@@ -485,6 +523,7 @@ function OrderDetail({ order }) {
       {/* Custom order banners */}
       {(order.status === 'orcamento' || (order.status === 'draft' && isCustomOrderFlow(order))) && <OrcamentoBanner />}
       {order.status === 'aguardando_confirmacao' && <QuoteBanner order={order} />}
+      {order.status === 'reservado' && <ReservaBanner order={order} />}
 
       {/* Pix proof */}
       {order.status === 'confirmado' && <ProofField order={order} />}
@@ -856,6 +895,7 @@ export default function MyOrdersPage({ defaultTab }) {
         {/* Custom order banners */}
         {(selectedOrder.status === 'orcamento' || (selectedOrder.status === 'draft' && isCustomOrderFlow(selectedOrder))) && <OrcamentoBanner />}
         {selectedOrder.status === 'aguardando_confirmacao' && <QuoteBanner order={selectedOrder} />}
+        {selectedOrder.status === 'reservado' && <ReservaBanner order={selectedOrder} />}
 
         {/* Pix */}
         {selectedOrder.status === 'confirmado' && <ProofField order={selectedOrder} />}
